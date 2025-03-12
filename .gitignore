@@ -1,0 +1,16 @@
+__pycache__
+*.tsv
+*.png
+venv/*
+*.zip
+*.duckdb
+*.sqlite
+*.db
+*.wal
+.vscode/*
+data/*/*
+*.csv
+data_tmp/*
+!data_tmp/README.md
+logs/
+*.tmp
