@@ -161,7 +161,7 @@
                         });
                         a.appendChild(b);
                         /*show only first N elements*/
-                        if (a.childElementCount === 25) break;
+                        if (a.childElementCount === 250) break;
                     }
                 }
             }
@@ -419,6 +419,34 @@
                     const reference_drug_name = data.reference_drug["Molecule Name"];
                     let i = 0;
                     data.similar_drugs_primary.forEach(record => {
+                        const row = document.createElement("tr");
+                        const replacement_drug_id = record["ChEMBL ID"];
+                        const replacement_drug_name = record["Molecule Name"];
+                        const similarity = record["Similarity"];
+                        const isApproved = record["isApproved"];
+                        const isUrlAvailable = record["isUrlAvailable"];
+                        const phase = `Phase ${record["phase"]} (status: ${record["status"]})`;
+                        i += 1;
+                        row.innerHTML = `
+                            <td>${i}</td>
+                            <td>${disease_id}</td>
+                            <td>${reference_drug_id}</td>
+                            <td>${replacement_drug_id}</td>
+                            <td>${replacement_drug_name}</td>
+                            <td>${similarity}</td>
+                            <td>${isApproved}</td>
+                            <td>${isUrlAvailable}</td>
+                            <td>${phase}</td>
+                            <td>
+                                <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${replacement_drug_id}')">Show</button>
+                            </td>
+                            <td>
+                                <button onclick="addEntryToIVPETable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to IVPE table</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    })
+                    data.similar_drugs_secondary.forEach(record => {
                         const row = document.createElement("tr");
                         const replacement_drug_id = record["ChEMBL ID"];
                         const replacement_drug_name = record["Molecule Name"];
