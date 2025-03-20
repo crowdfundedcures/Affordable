@@ -127,7 +127,12 @@ def search_targets(query: str):
 @app.get("/disease_chembl_similarity/{disease_id}/{chembl_id}", response_model=Dict)
 def get_disease_chembl_similarity(disease_id: str, chembl_id: str, top_k: int = Query(10, ge=1, le=100)):
     """Retrieve top-k similar substances for a given disease and ChEMBL ID."""
-    
+    disease = conn.execute('SELECT * FROM tbl_diseases WHERE id = ?', [disease_id]).fetchone()
+    if not disease:
+        raise HTTPException(status_code=404, detail="Disease not found")
+    disease_columns = [desc[0] for desc in conn.description]
+    disease = dict(zip(disease_columns, disease))
+
     # Get all target IDs associated with the disease
     target_query = """
         SELECT DISTINCT target_id FROM tbl_disease_target WHERE disease_id = ?
@@ -167,20 +172,14 @@ def get_disease_chembl_similarity(disease_id: str, chembl_id: str, top_k: int = 
     # Sort results by similarity
     ranked_results = sorted(similarities, key=lambda x: x["Similarity"], reverse=True)
 
-    query = "SELECT * FROM tbl_knownDrugsAggregated WHERE drugId = ? and diseaseId = ?"
-    for i, row in enumerate(ranked_results):
-        chembl_id1 = row['ChEMBL ID']
-        known_drugs = [{column[0]: json.loads(value) if column[0] == 'urls' else value for column, value in zip(conn.description, row)} 
-                       for row in conn.execute(query, [chembl_id1, disease_id]).fetchall()]
-        ranked_results[i]['fld_knownDrugsAggregated'] = known_drugs
-
     for i, row in enumerate(ranked_results):
         chembl_id1 = row['ChEMBL ID']
         query = "SELECT COALESCE(name, 'N/A'), isApproved FROM tbl_substances WHERE chembl_id = ?"
         molecule_name, is_approved = conn.execute(query, [chembl_id1]).fetchone()
 
         query = "SELECT * FROM tbl_knownDrugsAggregated WHERE drugId = ? and diseaseId = ?"
-        known_drugs_aggregated = [{column[0]: value for column, value in zip(conn.description, row)} for row in conn.execute(query, [chembl_id1, disease_id]).fetchall()]
+        known_drugs_aggregated = [{column[0]: json.loads(value) if column[0] == 'urls' else value for column, value in zip(conn.description, row)}
+                                  for row in conn.execute(query, [chembl_id1, disease_id]).fetchall()]
         if known_drugs_aggregated:
             is_url_available = any(row['urls'] for row in known_drugs_aggregated)
             max_phase = max(row['phase'] for row in known_drugs_aggregated)
@@ -221,10 +220,10 @@ def get_disease_chembl_similarity(disease_id: str, chembl_id: str, top_k: int = 
         ref_similarity = results_top_k_lvl2[top_k - 1]["Similarity"]
         results_top_k_lvl2 = [row for row in results_top_k_lvl2 if row['Similarity'] >= ref_similarity]
 
-    return {'reference_drug': reference_drug, 'similar_drugs_primary': results_top_k_lvl1, 'similar_drugs_secondary': results_top_k_lvl2}
+    return {'disease': disease, 'reference_drug': reference_drug, 'similar_drugs_primary': results_top_k_lvl1, 'similar_drugs_secondary': results_top_k_lvl2}
 
-@app.get("/evidences/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=List)
-def get_evidences(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+@app.get("/evidence/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=List)
+def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
     q = f'''
     SELECT DISTINCT a.target_id
     FROM tbl_disease_target dt
