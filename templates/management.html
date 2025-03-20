@@ -140,6 +140,9 @@
                 /*for each item in the array...*/
                 for (i = 0; i < arr.length; i++) {
                     let id_with_name = arr[i][0] + ": " + arr[i][1];
+                    if (arr[i].length > 2) {
+                        id_with_name += ` (${arr[i][2]})`
+                    }
                     let start = id_with_name.toUpperCase().indexOf(val.toUpperCase());
                     if (start !== -1) {
                         /*create a DIV element for each matching element:*/
@@ -153,7 +156,7 @@
                         b.setAttribute("data-name", arr[i][1]);
                         b.addEventListener("click", function(e) {
                             /*insert the value for the autocomplete text field:*/
-                            inp.value = this.getAttribute("data-id") + ": " + this.getAttribute("data-name");
+                            inp.value = id_with_name;
                             inp.setAttribute("data-id", this.getAttribute("data-id"));
                             /*close the list of autocompleted values,
                             (or any other open lists of autocompleted values:*/
@@ -161,7 +164,7 @@
                         });
                         a.appendChild(b);
                         /*show only first N elements*/
-                        if (a.childElementCount === 250) break;
+                        if (a.childElementCount === 100) break;
                     }
                 }
             }

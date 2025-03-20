@@ -175,7 +175,7 @@ def get_diseases():
 
 @app.get("/substances", response_model=List[List])
 def get_substances():
-    return bio_data_conn.execute('SELECT ChEMBL_id, name FROM tbl_substances').fetchall()
+    return bio_data_conn.execute('SELECT ChEMBL_id, name, tradeNames FROM tbl_substances').fetchall()
 
 
 # Serve HTML Pages
