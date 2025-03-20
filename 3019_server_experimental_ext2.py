@@ -390,7 +390,7 @@ def get_last_calculation_result():
     return last_result
 
 
-class IVPEEntry(BaseModel):
+class IVPEEntryFullModel(BaseModel):
     similarity: float|int
     disease_id: str
     disease_name: str
@@ -404,7 +404,7 @@ class IVPEEntry(BaseModel):
     annual_cost_reduction: Optional[str] = None
     is_active: Optional[bool] = None
 
-@app.get("/table_ivpe", response_model=List[IVPEEntry])
+@app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
 def get_table_ivpe():
     rows = management_conn.execute('SELECT * FROM ivpe_table').fetchall()
     columns = [desc[0] for desc in management_conn.description]
@@ -413,7 +413,7 @@ def get_table_ivpe():
     return rows
 
 @app.put("/table_ivpe", response_model=Dict)
-def add_entry_to_table_ivpe(entry: IVPEEntry):
+def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
     try:
         management_conn.execute("""
             INSERT INTO ivpe_table (
@@ -450,36 +450,28 @@ def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacem
 
     return {"success": True, "message": "entry was deleted successfully"}
 
+class IVPEEntryUpdateModel(BaseModel):
+    disease_id: str
+    reference_drug_id: str
+    replacement_drug_id: str
+    global_patient_population: str
+    cost_difference: str
+    annual_cost_reduction: str
+    is_active: bool
+
 @app.post("/table_ivpe", response_model=Dict)
-def update_entry_in_table_ivpe(entry: IVPEEntry):
+def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
     management_conn.execute("""
-        INSERT INTO ivpe_table (
-            similarity,
-            disease_id,
-            disease_name,
-            reference_drug_id,
-            reference_drug_name,
-            replacement_drug_id,
-            replacement_drug_name,
-            global_patient_population,
-            cost_difference,
-            evidence,
-            annual_cost_reduction,
-            is_active
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
-        [entry.similarity,
-        entry.disease_id,
-        entry.disease_name,
-        entry.reference_drug_id,
-        entry.reference_drug_name,
-        entry.replacement_drug_id,
-        entry.replacement_drug_name,
-        entry.global_patient_population,
-        entry.cost_difference,
-        entry.evidence,
-        entry.annual_cost_reduction,
-        entry.is_active])
+        UPDATE ivpe_table 
+        SET global_patient_population = ?,
+            cost_difference = ?,
+            annual_cost_reduction = ?,
+            is_active = ?
+        WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+        [
+            entry.global_patient_population, entry.cost_difference, entry.annual_cost_reduction, entry.is_active,
+            entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id
+        ])
 
     return {"success": True, "message": "entry was added successfully"}
 

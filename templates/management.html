@@ -282,7 +282,6 @@
                     buttons_div.appendChild(close_button);
                     close_button.innerText = "Close";
                     close_button.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("evidence_popup"))});
-                    popup.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("evidence_popup"))});
                     document.body.appendChild(popup);
                 })
                 .catch((error) => {
@@ -324,7 +323,7 @@
                     credentials: 'include', // ✅ Automatically send cookies
                     headers: { 'Content-Type': 'application/json' }
                 });
-    
+
                 if (response.status === 401 || response.status === 403) {
                     alert("Unauthorized. Redirecting to login.");
                     window.location.href = "/login";
@@ -334,40 +333,141 @@
                     alert("Error: status: " + response.status + ", response: " + await response.text());
                     return;
                 }
-    
+
                 const data = await response.json();
-    
+
                 const tableBody = document.getElementById("ivpe-table-body");
                 tableBody.innerHTML = ""; 
 
                 data.forEach(record => {
                     const row = document.createElement("tr");
                     row.innerHTML = `
-                        <td>${record.similarity}</td>
-                        <td>${record.disease_id}</td>
-                        <td>${record.disease_name}</td>
-                        <td>${record.reference_drug_id}</td>
-                        <td>${record.reference_drug_name}</td>
-                        <td>${record.replacement_drug_id}</td>
-                        <td>${record.replacement_drug_name}</td>
-                        <td>${record.global_patient_population}</td>
-                        <td>${record.cost_difference}</td>
-                        <td>${record.evidence}</td>
-                        <td>${record.annual_cost_reduction}</td>
+                        <td data-column="similarity">${record.similarity}</td>
+                        <td data-column="disease_id">${record.disease_id}</td>
+                        <td data-column="disease_name">${record.disease_name}</td>
+                        <td data-column="reference_drug_id">${record.reference_drug_id}</td>
+                        <td data-column="reference_drug_name">${record.reference_drug_name}</td>
+                        <td data-column="replacement_drug_id">${record.replacement_drug_id}</td>
+                        <td data-column="replacement_drug_name">${record.replacement_drug_name}</td>
+                        <td data-column="global_patient_population">${record.global_patient_population}</td>
+                        <td data-column="cost_difference">${record.cost_difference}</td>
+                        <td data-column="evidence">${record.evidence}</td>
+                        <td data-column="annual_cost_reduction">${record.annual_cost_reduction}</td>
                         <td>
-                            <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')"><img src="/static/eye.svg" alt="Show"></button>
-                        </td>
-                        <td>${record.is_active}</td>
+                            <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
+                                <img src="/static/eye.svg" alt="Show">
+                            </button>
+                        </td>`
+                    if (record.is_active) {
+                        row.innerHTML += `<td data-column="is_active"><input type="checkbox" onclick="return false;" checked></td>`
+                    } else {
+                        row.innerHTML += `<td data-column="is_active"><input type="checkbox" onclick="return false;"></td>`
+                    }
+                    row.innerHTML += `
                         <td>
-                            <button class="delete-btn" onclick="deleteEntryFromIVPETable('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')"><img src="/static/trash.svg" alt="Delete"></button>
+                            <button class="delete-btn" onclick="deleteEntryFromIVPETable('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
+                                <img src="/static/trash.svg" alt="Delete">
+                            </button>
+                            <button onclick="editEntryInIVPETable(this.parentNode.parentNode)">
+                                <img src="/static/pen.svg" alt="Edit">
+                            </button>
                         </td>
                     `;
                     tableBody.appendChild(row);
                 });
-    
             } catch (error) {
                 console.error("Error fetching data:", error);
             }
+        }
+
+        async function editEntryInIVPETable(tr_element) {
+            let disease_id, reference_drug_id, replacement_drug_id, global_patient_population, cost_difference, annual_cost_reduction, is_active;
+            tr_element.childNodes.forEach(td_element => {
+                if (td_element.nodeType !== Node.TEXT_NODE) {
+                    if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "reference_drug_id") { reference_drug_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "replacement_drug_id") { replacement_drug_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "cost_difference") { cost_difference = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.getElementsByTagName("input")[0].checked; }
+                }
+            })
+
+            const popup = document.createElement("div");
+            popup.setAttribute("id", "edit_ivpe_popup");
+            popup.classList.add("b-popup");
+            const popupContent = document.createElement("div");
+            popupContent.classList.add("b-popup-content");
+            popup.appendChild(popupContent);
+            const table_div = document.createElement("div");
+            table_div.classList.add("b-popup-content-table-div");
+            popupContent.appendChild(table_div);
+            const table = document.createElement("table");
+            table_div.appendChild(table);
+            const thead = document.createElement("thead");
+            table.appendChild(thead);
+            const tbody = document.createElement("tbody");
+            table.appendChild(tbody);
+            thead.innerHTML = `
+                <tr>
+                    <th style="text-align: left;">Column</th>
+                    <th style="width: 100%">Value</th>
+                </tr>`
+
+            if (is_active) {
+                is_active_checkbox_el = `<input type="checkbox" id="edit_ivpe_popup_is_active" checked>`
+            } else {
+                is_active_checkbox_el = `<input type="checkbox" id="edit_ivpe_popup_is_active">`
+            }
+            tbody.innerHTML = `
+            <tr><td style="text-align: left;">disease_id</td><td style="text-align: left;">${disease_id}</td></tr>
+            <tr><td style="text-align: left;">reference_drug_id</td><td style="text-align: left;">${reference_drug_id}</td></tr>
+            <tr><td style="text-align: left;">replacement_drug_id</td><td style="text-align: left;">${replacement_drug_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">global_patient_population</td>
+                <td>
+                    <input type="text" value="${global_patient_population}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_global_patient_population" placeholder="global_patient_population">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">cost_difference</td>
+                <td>
+                    <input type="text" value="${cost_difference}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_cost_difference" placeholder="cost_difference">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">annual_cost_reduction</td>
+                <td>
+                    <input type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">is_active</td>
+                <td style="text-align: left;">
+                    ${is_active_checkbox_el}
+                </td>
+            </tr>
+            `
+
+            const buttons_div = document.createElement("div");
+            popupContent.appendChild(buttons_div);
+            const close_button = document.createElement("button");
+            buttons_div.appendChild(close_button);
+            close_button.innerText = "Cancel";
+            close_button.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("edit_ivpe_popup"))});
+            const save_button = document.createElement("button");
+            buttons_div.appendChild(save_button);
+            save_button.innerText = "Save";
+            save_button.addEventListener("click", async function(event) {
+                const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value;
+                const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value;
+                const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
+                const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
+                await updateEntryInIVPETable(disease_id, reference_drug_id, replacement_drug_id, global_patient_population, cost_difference, annual_cost_reduction, is_active);
+                document.body.removeChild(document.getElementById("edit_ivpe_popup"));
+            });
+            document.body.appendChild(popup);
         }
 
         async function addEntryToIVPETable(similarity, disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, phase) {
@@ -388,6 +488,42 @@
                         replacement_drug_id: replacement_drug_id,
                         replacement_drug_name: replacement_drug_name,
                         evidence: phase
+                    })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+
+                await getIVPETable();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        async function updateEntryInIVPETable(disease_id, reference_drug_id, replacement_drug_id, global_patient_population, cost_difference, annual_cost_reduction, is_active) {
+            try {
+                const response = await fetch(`/table_ivpe`, {
+                    method: 'POST',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        disease_id: disease_id,
+                        reference_drug_id: reference_drug_id,
+                        replacement_drug_id: replacement_drug_id,
+                        global_patient_population: global_patient_population,
+                        cost_difference: cost_difference,
+                        annual_cost_reduction: annual_cost_reduction,
+                        is_active: is_active
                     })
                 });
 
@@ -441,7 +577,9 @@
                             <td>${isUrlAvailable}</td>
                             <td>${phase}</td>
                             <td>
-                                <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${replacement_drug_id}')"><img src="/static/eye.svg" alt="Show"></button>
+                                <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${replacement_drug_id}')">
+                                    <img src="/static/eye.svg" alt="Show">
+                                </button>
                             </td>
                             <td>
                                 <button onclick="addEntryToIVPETable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to IVPE table</button>
@@ -469,7 +607,9 @@
                             <td>${isUrlAvailable}</td>
                             <td>${phase}</td>
                             <td>
-                                <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${replacement_drug_id}')"><img src="/static/eye.svg" alt="Show"></button>
+                                <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${replacement_drug_id}')">
+                                    <img src="/static/eye.svg" alt="Show">
+                                </button>
                             </td>
                             <td>
                                 <button onclick="addEntryToIVPETable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to IVPE table</button>
