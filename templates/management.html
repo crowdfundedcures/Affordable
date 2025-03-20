@@ -5,182 +5,529 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Management Panel</title>
     <link rel="stylesheet" href="/static/styles.css">
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th, td {
-            border: 1px solid black;
-            padding: 8px;
-            text-align: center;
-        }
-
-        th {
-            background-color: #f2f2f2;
-        }
-
-        .delete-btn {
-            background-color: red;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            cursor: pointer;
-        }
-
-        .delete-btn:hover {
-            background-color: darkred;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
         <h2>Management Panel</h2>
 
         <h3>Disease Management</h3>
-        <form id="disease-form">
-            <input type="text" id="disease_id" placeholder="Disease ID" required>
-            <input type="text" id="reference_drug_id" placeholder="Reference Drug ID" required>
-            <input type="text" id="replacement_drug_id" placeholder="Replacement Drug ID" required>
-            <button type="button" onclick="addEntry()">Add Entry</button>
-        </form>
+        <div class="autocomplete">
+            <input type="text" id="disease" placeholder="Disease" required>
+        </div>
+        <div class="autocomplete">
+            <input type="text" id="reference_drug" placeholder="Reference Drug" required>
+        </div>
+        <button type="button" id="calculate_button">Calculate</button>
+        <label id="myProgressTextBox"></label>
 
-        <h3>Existing Records</h3>
+        <h3>Last Result</h3>
         <table>
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>Disease ID</th>
                     <th>Reference Drug ID</th>
                     <th>Replacement Drug ID</th>
-                    <th>Action</th>
+                    <th>Replacement Drug Name</th>
+                    <th>Similarity</th>
+                    <th>isApproved</th>
+                    <th>isUrlAvailable</th>
+                    <th>Phase</th>
+                    <th>Evidence</th>
                 </tr>
             </thead>
-            <tbody id="records-table-body">
+            <tbody id="last-result-table-body">
                 <!-- Table rows will be dynamically inserted here -->
             </tbody>
         </table>
 
-        <button onclick="logout()">Logout</button>
+        <h3>IVPE Table</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>similarity</th>
+                    <th>disease_id</th>
+                    <th>disease_name</th>
+                    <th>reference_drug_id</th>
+                    <th>reference_drug_name</th>
+                    <th>replacement_drug_id</th>
+                    <th>replacement_drug_name</th>
+                    <th>global_patient_population</th>
+                    <th>cost_difference</th>
+                    <th>evidence</th>
+                    <th>annual_cost_reduction</th>
+                    <th>links</th>
+                    <th>is_active</th>
+                </tr>
+            </thead>
+            <tbody id="ivpe-table-body">
+                <!-- Table rows will be dynamically inserted here -->
+            </tbody>
+        </table>
+
+        <!-- <button onclick="logout()">Logout</button> -->
     </div>
 
     <script>
-        function getToken() {
-            const cookies = document.cookie.split("; ");
-            for (let cookie of cookies) {
-                if (cookie.startsWith("token=")) {
-                    return cookie.split("=")[1];
+        async function fetchAllDiseases() {
+            try {
+                const response = await fetch('/diseases', {
+                    method: 'GET',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: { 'Content-Type': 'application/json' }
+                });
+    
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
                 }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+    
+                return await response.json();
+            } catch (error) {
+                console.error("Error fetching data:", error);
             }
-            return null;
         }
 
-        async function fetchDiseaseData() {
-            const token = getToken();
-            if (!token) {
-                window.location.href = "/login";
-                return;
-            }
-
+        async function fetchAllDrugs() {
             try {
-                const response = await fetch('/disease_management', {
+                const response = await fetch('/substances', {
                     method: 'GET',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: { 'Content-Type': 'application/json' }
+                });
+    
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+    
+                return await response.json();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        function autocomplete(inp, arr) {
+            /*the autocomplete function takes two arguments,
+            the text field element and an array of possible autocompleted values:*/
+            var currentFocus;
+
+            function showAutocompleteList(e) {
+                this.removeAttribute("data-id");
+                var a, b, i, val = this.value;
+                /*close any already open lists of autocompleted values*/
+                closeAllLists();
+                if (!val) {return false;}
+                val = val.trim();
+                if (val.length < 2) { return false;}
+                currentFocus = -1;
+                /*create a DIV element that will contain the items (values):*/
+                a = document.createElement("DIV");
+                a.setAttribute("id", this.id + "_autocomplete-list");
+                a.setAttribute("class", "autocomplete-items");
+                /*append the DIV element as a child of the autocomplete container:*/
+                this.parentNode.appendChild(a);
+                /*for each item in the array...*/
+                for (i = 0; i < arr.length; i++) {
+                    let id_with_name = arr[i][0] + ": " + arr[i][1];
+                    let start = id_with_name.toUpperCase().indexOf(val.toUpperCase());
+                    if (start !== -1) {
+                        /*create a DIV element for each matching element:*/
+                        b = document.createElement("DIV");
+                        /*make the matching letters bold:*/
+                        b.innerHTML = id_with_name.substr(0, start)
+                        b.innerHTML += "<strong>" + id_with_name.substr(start, val.length) + "</strong>";
+                        b.innerHTML += id_with_name.substr(start + val.length);
+
+                        b.setAttribute("data-id", arr[i][0]);
+                        b.setAttribute("data-name", arr[i][1]);
+                        b.addEventListener("click", function(e) {
+                            /*insert the value for the autocomplete text field:*/
+                            inp.value = this.getAttribute("data-id") + ": " + this.getAttribute("data-name");
+                            inp.setAttribute("data-id", this.getAttribute("data-id"));
+                            /*close the list of autocompleted values,
+                            (or any other open lists of autocompleted values:*/
+                            closeAllLists();
+                        });
+                        a.appendChild(b);
+                        /*show only first N elements*/
+                        if (a.childElementCount === 25) break;
+                    }
+                }
+            }
+            /*execute a function when someone writes in the text field:*/
+            inp.addEventListener("input", showAutocompleteList);
+            inp.addEventListener("click", showAutocompleteList);
+            /*execute a function presses a key on the keyboard:*/
+            inp.addEventListener("keydown", function(e) {
+                var x = document.getElementById(this.id + "_autocomplete-list");
+                if (x) x = x.getElementsByTagName("div");
+                if (e.keyCode == 40) {
+                    /*If the arrow DOWN key is pressed,
+                    increase the currentFocus variable:*/
+                    currentFocus++;
+                    /*and and make the current item more visible:*/
+                    addActive(x);
+                } else if (e.keyCode == 38) { //up
+                    /*If the arrow UP key is pressed,
+                    decrease the currentFocus variable:*/
+                    currentFocus--;
+                    /*and and make the current item more visible:*/
+                    addActive(x);
+                } else if (e.keyCode == 13) {
+                    /*If the ENTER key is pressed, prevent the form from being submitted,*/
+                    e.preventDefault();
+                    if (currentFocus > -1) {
+                    /*and simulate a click on the "active" item:*/
+                    if (x) x[currentFocus].click();
+                    }
+                }
+            });
+            function addActive(x) {
+                /*a function to classify an item as "active":*/
+                if (!x) return false;
+                /*start by removing the "active" class on all items:*/
+                removeActive(x);
+                if (currentFocus >= x.length) currentFocus = 0;
+                if (currentFocus < 0) currentFocus = (x.length - 1);
+                /*add class "autocomplete-active":*/
+                x[currentFocus].classList.add("autocomplete-active");
+            }
+            function removeActive(x) {
+                /*a function to remove the "active" class from all autocomplete items:*/
+                for (var i = 0; i < x.length; i++) {
+                    x[i].classList.remove("autocomplete-active");
+                }
+            }
+            function closeAllLists(elmnt) {
+                /*close all autocomplete lists in the document,
+                except the one passed as an argument:*/
+                var x = document.getElementsByClassName("autocomplete-items");
+                for (var i = 0; i < x.length; i++) {
+                    if (elmnt && elmnt.parentNode != x[i].parentNode) {
+                        x[i].parentNode.removeChild(x[i]);
+                    }
+                }
+            }
+            /*execute a function when someone clicks in the document:*/
+            document.addEventListener("click", function (e) {
+                closeAllLists(e.target);
+            });
+        }
+
+        function showEvidence(disease_id, reference_drug_id, replacement_drug_id) {
+            fetch(`/evidence/${disease_id}/${reference_drug_id}/${replacement_drug_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data) { return; }
+                    const popup = document.createElement("div");
+                    popup.setAttribute("id", "evidence_popup");
+                    popup.classList.add("b-popup");
+                    const popupContent = document.createElement("div");
+                    popupContent.classList.add("b-popup-content");
+                    popup.appendChild(popupContent);
+                    const table_div = document.createElement("div");
+                    table_div.classList.add("b-popup-content-table-div");
+                    popupContent.appendChild(table_div);
+                    const table = document.createElement("table");
+                    table_div.appendChild(table);
+                    const thead = document.createElement("thead");
+                    table.appendChild(thead);
+                    const tbody = document.createElement("tbody");
+                    table.appendChild(tbody);
+                    thead.innerHTML = `
+                        <tr>
+                            <th>#</th>
+                            <th>Target ID</th>
+                            <th>Action Type</th>
+                            <th>Mechanism of action</th>
+                            <th>refs</th>
+                        </tr>`
+
+                    let i = 0;
+                    data.forEach(record => {
+                        const tr = document.createElement("tr");
+                        i += 1;
+                        tr.innerHTML = `
+                            <td>${i}</td>
+                            <td>${record.target_id}</td>
+                            <td>${record.action_type}</td>
+                            <td>${record.mechanism_of_action}</td>
+                        `;
+                        let refs = '';
+                        record.refs.forEach(ref => {
+                            ref.ref_data.forEach(url => {
+                                refs += `${url} <br>`;
+                            })
+                        })
+                        tr.innerHTML += `<td>${refs}</td>`;
+                        tbody.appendChild(tr);
+                    })
+                    const buttons_div = document.createElement("div");
+                    popupContent.appendChild(buttons_div);
+                    const close_button = document.createElement("button");
+                    buttons_div.appendChild(close_button);
+                    close_button.innerText = "Close";
+                    close_button.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("evidence_popup"))});
+                    popup.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("evidence_popup"))});
+                    document.body.appendChild(popup);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+
+        async function deleteEntryFromIVPETable(disease_id, reference_drug_id, replacement_drug_id) {
+            try {
+                const response = await fetch(`/table_ivpe/${disease_id}/${reference_drug_id}/${replacement_drug_id}`, {
+                    method: 'DELETE',
+                    credentials: 'include', // ✅ Automatically send cookies
                     headers: {
-                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     }
                 });
 
-                if (!response.ok) return;
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
 
+                await getIVPETable();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        async function getIVPETable() {
+            try {
+                const response = await fetch('/table_ivpe', {
+                    method: 'GET',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: { 'Content-Type': 'application/json' }
+                });
+    
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+    
                 const data = await response.json();
-                const tableBody = document.getElementById("records-table-body");
-                tableBody.innerHTML = ""; // Clear previous data
+    
+                const tableBody = document.getElementById("ivpe-table-body");
+                tableBody.innerHTML = ""; 
 
                 data.forEach(record => {
                     const row = document.createElement("tr");
                     row.innerHTML = `
+                        <td>${record.similarity}</td>
                         <td>${record.disease_id}</td>
+                        <td>${record.disease_name}</td>
                         <td>${record.reference_drug_id}</td>
+                        <td>${record.reference_drug_name}</td>
                         <td>${record.replacement_drug_id}</td>
+                        <td>${record.replacement_drug_name}</td>
+                        <td>${record.global_patient_population}</td>
+                        <td>${record.cost_difference}</td>
+                        <td>${record.evidence}</td>
+                        <td>${record.annual_cost_reduction}</td>
                         <td>
-                            <button onclick="deleteRecord(${record.id})" class="delete-btn">Delete</button>
+                            <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">Show</button>
+                        </td>
+                        <td>${record.is_active}</td>
+                        <td>
+                            <button class="delete-btn" onclick="deleteEntryFromIVPETable('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">Delete</button>
                         </td>
                     `;
                     tableBody.appendChild(row);
                 });
+    
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        async function addEntryToIVPETable(similarity, disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, phase) {
+            try {
+                const response = await fetch(`/table_ivpe`, {
+                    method: 'PUT',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        similarity: similarity,
+                        disease_id: disease_id,
+                        disease_name: disease_name,
+                        reference_drug_id: reference_drug_id,
+                        reference_drug_name: reference_drug_name,
+                        replacement_drug_id: replacement_drug_id,
+                        replacement_drug_name: replacement_drug_name,
+                        evidence: phase
+                    })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+
+                await getIVPETable();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        function fetchLastResult() {
+            fetch('/last_calculation_result')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || !data.disease) { return; }
+
+                    const tableBody = document.getElementById("last-result-table-body");
+                    tableBody.innerHTML = "";
+
+                    const disease_id = data.disease["id"];
+                    const disease_name = data.disease["name"];
+                    const reference_drug_id = data.reference_drug["ChEMBL ID"];
+                    const reference_drug_name = data.reference_drug["Molecule Name"];
+                    let i = 0;
+                    data.similar_drugs_primary.forEach(record => {
+                        const row = document.createElement("tr");
+                        const replacement_drug_id = record["ChEMBL ID"];
+                        const replacement_drug_name = record["Molecule Name"];
+                        const similarity = record["Similarity"];
+                        const isApproved = record["isApproved"];
+                        const isUrlAvailable = record["isUrlAvailable"];
+                        const phase = `Phase ${record["phase"]} (status: ${record["status"]})`;
+                        i += 1;
+                        row.innerHTML = `
+                            <td>${i}</td>
+                            <td>${disease_id}</td>
+                            <td>${reference_drug_id}</td>
+                            <td>${replacement_drug_id}</td>
+                            <td>${replacement_drug_name}</td>
+                            <td>${similarity}</td>
+                            <td>${isApproved}</td>
+                            <td>${isUrlAvailable}</td>
+                            <td>${phase}</td>
+                            <td>
+                                <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${replacement_drug_id}')">Show</button>
+                            </td>
+                            <td>
+                                <button onclick="addEntryToIVPETable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to IVPE table</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    })
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function fetchProgress() {
+            fetch('/calculation_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_running) {
+                        document.getElementById('myProgressTextBox').innerText = data.progress;
+                        document.getElementById("calculate_button").disabled = true;
+                        setTimeout(fetchProgress, 1000);
+                    } else {
+                        document.getElementById('myProgressTextBox').innerText = '';
+                        document.getElementById("calculate_button").disabled = false;
+                        fetchLastResult();
+                    }
+                })
+                .catch((error) => {
+                    document.getElementById('myProgressTextBox').innerText = '';
+                    document.getElementById("calculate_button").disabled = false;
+                    console.error('Error:', error);
+                    fetchLastResult();
+                });
+        }
+
+        async function calculate() {
+            const disease_el = document.getElementById("disease");
+            const reference_drug_el = document.getElementById("reference_drug");
+            const disease_id = disease_el.getAttribute("data-id");
+            const reference_drug_id = reference_drug_el.getAttribute("data-id");
+
+            if (!disease_id) {alert("Disease not found"); return;}
+            if (!reference_drug_id) {alert("Reference Drug not found"); return;}
+
+            disease_el.removeAttribute("data-id");
+            reference_drug_el.removeAttribute("data-id");
+            disease_el.value = '';
+            reference_drug_el.value = '';
+
+            try {
+                const response = await fetch(`/calculate_similar_substances/${disease_id}/${reference_drug_id}`, {
+                    method: 'POST',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+                fetchProgress();
 
             } catch (error) {
                 console.error("Error fetching data:", error);
             }
         }
 
-        async function addEntry() {
-            const token = getToken();
-            if (!token) {
-                window.location.href = "/login";
-                return;
-            }
-
-            const diseaseId = document.getElementById("disease_id").value;
-            const refDrugId = document.getElementById("reference_drug_id").value;
-            const repDrugId = document.getElementById("replacement_drug_id").value;
-
-            if (!diseaseId || !refDrugId || !repDrugId) return;
-
-            try {
-                const response = await fetch('/disease_management', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        disease_id: diseaseId,
-                        reference_drug_id: refDrugId,
-                        replacement_drug_id: repDrugId
-                    })
-                });
-
-                if (response.ok) {
-                    fetchDiseaseData(); // Refresh table after adding
-                }
-            } catch (error) {
-                console.error("Error adding entry:", error);
-            }
+        async function fetchAllData() {
+            const allDrugs = await fetchAllDrugs();
+            autocomplete(document.getElementById("reference_drug"), allDrugs);
+            autocomplete(document.getElementById("disease"), await fetchAllDiseases());
+            getIVPETable();
+            fetchProgress();
         }
 
-        async function deleteRecord(recordId) {
-            const token = getToken();
-            if (!token) {
-                window.location.href = "/login";
-                return;
-            }
-
-            try {
-                const response = await fetch(`/disease_management/${recordId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    fetchDiseaseData(); // Refresh table after deletion
-                }
-            } catch (error) {
-                console.error("Error deleting record:", error);
-            }
-        }
-
-        function logout() {
-            document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-            window.location.href = "/login";
-        }
-
-        fetchDiseaseData(); // Fetch records on page load
+        document.addEventListener('DOMContentLoaded', function(event) {
+            const calculate_button = document.getElementById("calculate_button")
+            calculate_button.disabled = true;
+            calculate_button.addEventListener("click", calculate);
+            fetchAllData();
+        });
     </script>
 </body>
 </html>
