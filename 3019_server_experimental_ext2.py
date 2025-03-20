@@ -290,7 +290,7 @@ def similar_substances(disease_id: str, chembl_id: str, top_k: int, save: bool =
 
     # ------------ isApproved OR isUrlAvailable ------------------
     results_top_k_lvl1 = [row for row in ranked_results if (row['isUrlAvailable'] or row['isApproved']) and row['ChEMBL ID'] != chembl_id]
-    results_top_k_lvl1.sort(key=lambda x: [x['Similarity'], x['isApproved'], x['isUrlAvailable'], x['phase'], x['status_num'], x['ChEMBL ID']], reverse=True)
+    results_top_k_lvl1.sort(key=lambda x: [-x['Similarity'], -x['isApproved'], -x['isUrlAvailable'], -x['phase'], -x['status_num'], x['ChEMBL ID']])
 
     if len(results_top_k_lvl1) > top_k - 1:
         ref_similarity = results_top_k_lvl1[top_k - 1]["Similarity"]
@@ -298,7 +298,7 @@ def similar_substances(disease_id: str, chembl_id: str, top_k: int, save: bool =
 
     # ------------ not isApproved AND not isUrlAvailable ------------------
     results_top_k_lvl2 = [row for row in ranked_results if not row['isUrlAvailable'] and not row['isApproved'] and row['ChEMBL ID'] != chembl_id]
-    results_top_k_lvl2.sort(key=lambda x: [x['Similarity'], x['phase'], x['status_num'], x['ChEMBL ID']], reverse=True)
+    results_top_k_lvl2.sort(key=lambda x: [-x['Similarity'], -x['phase'], -x['status_num'], x['ChEMBL ID']])
 
     if len(results_top_k_lvl2) > top_k - 1:
         ref_similarity = results_top_k_lvl2[top_k - 1]["Similarity"]
