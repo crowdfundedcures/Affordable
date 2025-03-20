@@ -452,10 +452,14 @@ def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacem
 
 class IVPEEntryUpdateModel(BaseModel):
     disease_id: str
+    disease_name: str
     reference_drug_id: str
+    reference_drug_name: str
     replacement_drug_id: str
+    replacement_drug_name: str
     global_patient_population: str
     cost_difference: str
+    evidence: str
     annual_cost_reduction: str
     is_active: bool
 
@@ -463,14 +467,28 @@ class IVPEEntryUpdateModel(BaseModel):
 def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
     management_conn.execute("""
         UPDATE ivpe_table 
-        SET global_patient_population = ?,
+        SET disease_name = ?,
+            reference_drug_name = ?,
+            replacement_drug_name = ?,
+            global_patient_population = ?,
             cost_difference = ?,
+            evidence = ?,
             annual_cost_reduction = ?,
             is_active = ?
         WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
         [
-            entry.global_patient_population, entry.cost_difference, entry.annual_cost_reduction, entry.is_active,
-            entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id
+            entry.disease_name,
+            entry.reference_drug_name,
+            entry.replacement_drug_name,
+            entry.global_patient_population,
+            entry.cost_difference,
+            entry.evidence,
+            entry.annual_cost_reduction,
+            entry.is_active,
+
+            entry.disease_id,
+            entry.reference_drug_id,
+            entry.replacement_drug_id
         ])
 
     return {"success": True, "message": "entry was added successfully"}

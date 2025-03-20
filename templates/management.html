@@ -381,14 +381,18 @@
         }
 
         async function editEntryInIVPETable(tr_element) {
-            let disease_id, reference_drug_id, replacement_drug_id, global_patient_population, cost_difference, annual_cost_reduction, is_active;
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active;
             tr_element.childNodes.forEach(td_element => {
                 if (td_element.nodeType !== Node.TEXT_NODE) {
                     if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "disease_name") { disease_name = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "reference_drug_id") { reference_drug_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "reference_drug_name") { reference_drug_name = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "replacement_drug_id") { replacement_drug_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "replacement_drug_name") { replacement_drug_name = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "cost_difference") { cost_difference = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "evidence") { evidence = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.innerText === "Yes"; }
                 }
@@ -422,8 +426,26 @@
             }
             tbody.innerHTML = `
             <tr><td style="text-align: left;">disease_id</td><td style="text-align: left;">${disease_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">disease_name</td>
+                <td>
+                    <input type="text" value="${disease_name}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_disease_name" placeholder="disease_name">
+                </td>
+            </tr>
             <tr><td style="text-align: left;">reference_drug_id</td><td style="text-align: left;">${reference_drug_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">reference_drug_name</td>
+                <td>
+                    <input type="text" value="${reference_drug_name}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_reference_drug_name" placeholder="reference_drug_name">
+                </td>
+            </tr>
             <tr><td style="text-align: left;">replacement_drug_id</td><td style="text-align: left;">${replacement_drug_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">replacement_drug_name</td>
+                <td>
+                    <input type="text" value="${replacement_drug_name}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_replacement_drug_name" placeholder="replacement_drug_name">
+                </td>
+            </tr>
             <tr>
                 <td style="text-align: left;">global_patient_population</td>
                 <td>
@@ -434,6 +456,12 @@
                 <td style="text-align: left;">cost_difference</td>
                 <td>
                     <input type="text" value="${cost_difference}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_cost_difference" placeholder="cost_difference">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">evidence</td>
+                <td>
+                    <input type="text" value="${evidence}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_evidence" placeholder="evidence">
                 </td>
             </tr>
             <tr>
@@ -460,11 +488,15 @@
             buttons_div.appendChild(save_button);
             save_button.innerText = "Save";
             save_button.addEventListener("click", async function(event) {
+                const disease_name = document.getElementById("edit_ivpe_popup_global_disease_name").value;
+                const reference_drug_name = document.getElementById("edit_ivpe_popup_reference_drug_name").value;
+                const replacement_drug_name = document.getElementById("edit_ivpe_popup_replacement_drug_name").value;
                 const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value;
                 const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value;
+                const evidence = document.getElementById("edit_ivpe_popup_evidence").value;
                 const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
-                await updateEntryInIVPETable(disease_id, reference_drug_id, replacement_drug_id, global_patient_population, cost_difference, annual_cost_reduction, is_active);
+                await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
                 document.body.removeChild(document.getElementById("edit_ivpe_popup"));
             });
             document.body.appendChild(popup);
@@ -507,7 +539,7 @@
             }
         }
 
-        async function updateEntryInIVPETable(disease_id, reference_drug_id, replacement_drug_id, global_patient_population, cost_difference, annual_cost_reduction, is_active) {
+        async function updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active) {
             try {
                 const response = await fetch(`/table_ivpe`, {
                     method: 'POST',
@@ -518,10 +550,14 @@
                     },
                     body: JSON.stringify({
                         disease_id: disease_id,
+                        disease_name: disease_name,
                         reference_drug_id: reference_drug_id,
+                        reference_drug_name: reference_drug_name,
                         replacement_drug_id: replacement_drug_id,
+                        replacement_drug_name: replacement_drug_name,
                         global_patient_population: global_patient_population,
                         cost_difference: cost_difference,
+                        evidence: evidence,
                         annual_cost_reduction: annual_cost_reduction,
                         is_active: is_active
                     })
