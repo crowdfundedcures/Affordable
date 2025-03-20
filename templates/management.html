@@ -359,9 +359,9 @@
                             </button>
                         </td>`
                     if (record.is_active) {
-                        row.innerHTML += `<td data-column="is_active"><input type="checkbox" onclick="return false;" checked></td>`
+                        row.innerHTML += `<td data-column="is_active">Yes</td>`
                     } else {
-                        row.innerHTML += `<td data-column="is_active"><input type="checkbox" onclick="return false;"></td>`
+                        row.innerHTML += `<td data-column="is_active">No</td>`
                     }
                     row.innerHTML += `
                         <td>
@@ -390,7 +390,7 @@
                     else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "cost_difference") { cost_difference = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
-                    else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.getElementsByTagName("input")[0].checked; }
+                    else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.innerText === "Yes"; }
                 }
             })
 
@@ -416,9 +416,9 @@
                 </tr>`
 
             if (is_active) {
-                is_active_checkbox_el = `<input type="checkbox" id="edit_ivpe_popup_is_active" checked>`
+                is_active_checkbox_el = `<input type="checkbox" style="transform: scale(1.5);" id="edit_ivpe_popup_is_active" checked>`
             } else {
-                is_active_checkbox_el = `<input type="checkbox" id="edit_ivpe_popup_is_active">`
+                is_active_checkbox_el = `<input type="checkbox" style="transform: scale(1.5);" id="edit_ivpe_popup_is_active">`
             }
             tbody.innerHTML = `
             <tr><td style="text-align: left;">disease_id</td><td style="text-align: left;">${disease_id}</td></tr>
