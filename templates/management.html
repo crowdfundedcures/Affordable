@@ -267,7 +267,7 @@
                         let refs = '';
                         record.refs.forEach(ref => {
                             ref.ref_data.forEach(url => {
-                                refs += `${url} <br>`;
+                                refs += `<a href="${url}" target="_blank">${url}</a><br>`;
                             })
                         })
                         tr.innerHTML += `<td>${refs}</td>`;
