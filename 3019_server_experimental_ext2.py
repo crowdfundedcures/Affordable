@@ -169,11 +169,11 @@ def register_user(data: dict = Body(...)):
     return {"message": "User registered successfully"}
 
 
-@app.get("/diseases", response_model=List[List])
+@app.get("/diseases", response_model=List[List], dependencies=[Depends(get_current_user)])
 def get_diseases():
     return bio_data_conn.execute('SELECT id, name FROM tbl_diseases').fetchall()
 
-@app.get("/substances", response_model=List[List])
+@app.get("/substances", response_model=List[List], dependencies=[Depends(get_current_user)])
 def get_substances():
     return bio_data_conn.execute('SELECT ChEMBL_id, name, tradeNames FROM tbl_substances').fetchall()
 
@@ -317,7 +317,7 @@ def get_disease_chembl_similarity(disease_id: str, chembl_id: str, top_k: int = 
     return similar_substances(disease_id, chembl_id, top_k)
 
 
-@app.post("/calculate_similar_substances/{disease_id}/{chembl_id}", response_model=Dict)
+@app.post("/calculate_similar_substances/{disease_id}/{chembl_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
 def calculate_similar_substances(disease_id: str, chembl_id: str, top_k: int = Query(10, ge=1, le=100)):
     global last_calculation_thread
     if last_calculation_thread is None or not last_calculation_thread.is_alive():
@@ -378,13 +378,13 @@ class CalculationStatus(BaseModel):
     is_running: bool
     progress: str
 
-@app.get("/calculation_status", response_model=CalculationStatus)
+@app.get("/calculation_status", response_model=CalculationStatus, dependencies=[Depends(get_current_user)])
 def get_calculation_status():
     progress = f'[{last_calculation_pair[0]} - {last_calculation_pair[1]}] progress: {last_calculation_progress * 100:.1f} %' if last_calculation_progress is not None else ''
     return {"is_running": last_calculation_thread is not None and last_calculation_thread.is_alive(), "progress": progress}
 
 
-@app.get("/last_calculation_result", response_model=Dict)
+@app.get("/last_calculation_result", response_model=Dict, dependencies=[Depends(get_current_user)])
 def get_last_calculation_result():
     global last_result
     return last_result
@@ -412,7 +412,7 @@ def get_table_ivpe():
     rows = sorted(rows, key=lambda row: -row['similarity'])
     return rows
 
-@app.put("/table_ivpe", response_model=Dict)
+@app.put("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
     try:
         management_conn.execute("""
@@ -439,7 +439,7 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
         raise HTTPException(status_code=400, detail="Already exists")
     return {"success": True, "message": "entry was added successfully"}
 
-@app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict)
+@app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
     management_conn.execute("""
         DELETE FROM ivpe_table
@@ -463,7 +463,7 @@ class IVPEEntryUpdateModel(BaseModel):
     annual_cost_reduction: str
     is_active: bool
 
-@app.post("/table_ivpe", response_model=Dict)
+@app.post("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
     management_conn.execute("""
         UPDATE ivpe_table 
