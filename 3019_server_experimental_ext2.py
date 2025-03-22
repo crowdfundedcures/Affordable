@@ -74,6 +74,23 @@ management_conn.execute("""
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
 """)
+management_conn.execute("""
+    CREATE TABLE IF NOT EXISTS pfs_table (
+        similarity FLOAT NOT NULL,
+        disease_id TEXT NOT NULL,
+        disease_name TEXT NOT NULL,
+        reference_drug_id TEXT NOT NULL,
+        reference_drug_name TEXT NOT NULL,
+        replacement_drug_id TEXT NOT NULL,
+        replacement_drug_name TEXT NOT NULL,
+        annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
+        evidence TEXT NOT NULL,
+        global_patient_population TEXT NOT NULL DEFAULT 'N/A',
+        estimated_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
+        is_active BOOLEAN NOT NULL DEFAULT 0,
+        PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
+    )
+""")
 management_conn.close()
 
 last_result = {}
@@ -100,7 +117,10 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="No authentication token provided")
 
     # Validate token against stored tokens
-    management_conn = duckdb.connect(management_db_path, read_only=True)
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     user = management_conn.execute("SELECT username FROM users WHERE token = ?", [token]).fetchone()
     management_conn.close()
 
@@ -131,7 +151,10 @@ from fastapi.responses import JSONResponse
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     hashed_password = sha256(form_data.password.encode()).hexdigest()
     
-    management_conn = duckdb.connect(management_db_path)
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     user = management_conn.execute("SELECT username FROM users WHERE username=? AND password=?", 
                         [form_data.username, hashed_password]).fetchone()
 
@@ -172,7 +195,10 @@ def register_user(data: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Username and password are required")
 
     hashed_password = sha256(password.encode()).hexdigest()  # ✅ Hash password before storing
-    management_conn = duckdb.connect(management_db_path)
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     new_id = management_conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM users").fetchone()[0]
 
     try:
@@ -405,7 +431,10 @@ def extract_evidence(disease_id: str, reference_drug_id: str, replacement_drug_i
 
 @app.get("/evidence/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=List)
 def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
-    management_conn = duckdb.connect(management_db_path, read_only=True)
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     rows = management_conn.execute('''
         SELECT target_id, action_type, mechanism_of_action, refs
         FROM evidence
@@ -452,7 +481,10 @@ class IVPEEntryFullModel(BaseModel):
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
 def get_table_ivpe():
-    management_conn = duckdb.connect(management_db_path, read_only=True)
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     rows = management_conn.execute('SELECT * FROM ivpe_table').fetchall()
     columns = [desc[0] for desc in management_conn.description]
     management_conn.close()
@@ -462,7 +494,10 @@ def get_table_ivpe():
 
 @app.put("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
-    management_conn = duckdb.connect(management_db_path)
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     try:
         management_conn.execute("""
             INSERT INTO ivpe_table (
@@ -507,7 +542,10 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
 
 @app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
-    management_conn = duckdb.connect(management_db_path)
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     management_conn.execute("""
         DELETE FROM ivpe_table
         WHERE disease_id = ?
@@ -539,7 +577,10 @@ class IVPEEntryUpdateModel(BaseModel):
 
 @app.post("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
-    management_conn = duckdb.connect(management_db_path)
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     management_conn.execute("""
         UPDATE ivpe_table 
         SET disease_name = ?,
