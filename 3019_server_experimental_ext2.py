@@ -15,6 +15,7 @@ from hashlib import sha256
 import hashlib
 import secrets
 from fastapi import FastAPI, HTTPException, Depends, status
+import datetime as dt
 
 
 
@@ -525,6 +526,11 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
 
     evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
     evidence_list = [[entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in evidence_list]
+    
+    # debug
+    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - before executemany")
+    
     management_conn.executemany("""
         INSERT OR IGNORE INTO evidence (
             disease_id,
@@ -537,7 +543,16 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)""", 
         evidence_list)
+    
+    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after executemany")
+    
     management_conn.close()
+    
+    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after close")
+    
+    
     return {"success": True, "message": "entry was added successfully"}
 
 @app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
