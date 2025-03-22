@@ -34,11 +34,9 @@ STATUS_NUM = {
 management_db_path = "management.duck.db"
 bio_data_db_path = "bio_data.duck.db"
 
-management_conn = duckdb.connect(management_db_path)
-bio_data_conn = duckdb.connect(bio_data_db_path)
-
 
 # Database Initialization
+management_conn = duckdb.connect(management_db_path)
 management_conn.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id BIGINT PRIMARY KEY,
@@ -47,7 +45,18 @@ management_conn.execute("""
         token TEXT
     )
 """)
-
+management_conn.execute("""
+    CREATE TABLE IF NOT EXISTS evidence (
+        disease_id TEXT NOT NULL,
+        reference_drug_id TEXT NOT NULL,
+        replacement_drug_id TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        mechanism_of_action TEXT NOT NULL,
+        refs TEXT[],
+        PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id, target_id)
+    )
+""")
 management_conn.execute("""
     CREATE TABLE IF NOT EXISTS ivpe_table (
         similarity FLOAT NOT NULL,
@@ -65,7 +74,7 @@ management_conn.execute("""
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
 """)
-
+management_conn.close()
 
 last_result = {}
 last_calculation_thread: Thread = None
@@ -91,7 +100,9 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="No authentication token provided")
 
     # Validate token against stored tokens
+    management_conn = duckdb.connect(management_db_path, read_only=True)
     user = management_conn.execute("SELECT username FROM users WHERE token = ?", [token]).fetchone()
+    management_conn.close()
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token or user not authenticated")
@@ -120,16 +131,19 @@ from fastapi.responses import JSONResponse
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     hashed_password = sha256(form_data.password.encode()).hexdigest()
     
+    management_conn = duckdb.connect(management_db_path)
     user = management_conn.execute("SELECT username FROM users WHERE username=? AND password=?", 
                         [form_data.username, hashed_password]).fetchone()
 
     if not user:
+        management_conn.close()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = generate_token(user[0])  # ✅ Generate secure token
 
     # ✅ Store token in DB for validation
     management_conn.execute("UPDATE users SET token=? WHERE username=?", [token, user[0]])
+    management_conn.close()
 
     response = JSONResponse(content={"message": "Login successful"})
     response.set_cookie(
@@ -158,12 +172,15 @@ def register_user(data: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Username and password are required")
 
     hashed_password = sha256(password.encode()).hexdigest()  # ✅ Hash password before storing
+    management_conn = duckdb.connect(management_db_path)
     new_id = management_conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM users").fetchone()[0]
 
     try:
         management_conn.execute("INSERT INTO users (id, username, password) VALUES (?, ?, ?)", 
                      [new_id, username, hashed_password])
+        management_conn.close()
     except duckdb.ConstraintException:
+        management_conn.close()
         raise HTTPException(status_code=400, detail="Username already exists")
     
     return {"message": "User registered successfully"}
@@ -171,11 +188,17 @@ def register_user(data: dict = Body(...)):
 
 @app.get("/diseases", response_model=List[List], dependencies=[Depends(get_current_user)])
 def get_diseases():
-    return bio_data_conn.execute('SELECT id, name FROM tbl_diseases').fetchall()
+    bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
+    res = bio_data_conn.execute('SELECT id, name FROM tbl_diseases').fetchall()
+    bio_data_conn.close()
+    return res
 
 @app.get("/substances", response_model=List[List], dependencies=[Depends(get_current_user)])
 def get_substances():
-    return bio_data_conn.execute('SELECT ChEMBL_id, name, tradeNames FROM tbl_substances').fetchall()
+    bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
+    res = bio_data_conn.execute('SELECT ChEMBL_id, name, tradeNames FROM tbl_substances').fetchall()
+    bio_data_conn.close()
+    return res
 
 
 # Serve HTML Pages
@@ -205,6 +228,7 @@ def similar_substances(disease_id: str, chembl_id: str, top_k: int, save: bool =
         last_calculation_progress = 0.0
         last_calculation_pair = (disease_id, chembl_id)
 
+    bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
     disease = bio_data_conn.execute('SELECT * FROM tbl_diseases WHERE id = ?', [disease_id]).fetchone()
     if not disease:
         raise HTTPException(status_code=404, detail="Disease not found")
@@ -286,6 +310,8 @@ def similar_substances(disease_id: str, chembl_id: str, top_k: int, save: bool =
         if save:
             last_calculation_progress = 0.9 + 0.09 * (i+1) / len(ranked_results)
 
+    bio_data_conn.close()
+
     reference_drug = next(row for row in ranked_results if row['ChEMBL ID'] == chembl_id)
 
     # ------------ isApproved OR isUrlAvailable ------------------
@@ -328,17 +354,18 @@ def calculate_similar_substances(disease_id: str, chembl_id: str, top_k: int = Q
         raise HTTPException(status_code=400, detail="Please wait until the current calculation process is completed")
 
 
-@app.get("/evidence/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=List)
-def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+def extract_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
     q = f'''
     SELECT DISTINCT a.target_id
     FROM tbl_disease_target dt
     JOIN tbl_actions a ON dt.target_id = a.target_id
     WHERE dt.disease_id = ? AND a.ChEMBL_id = ?
     '''
+    bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
     target_ids = bio_data_conn.execute(q, [disease_id, reference_drug_id]).fetchall()
 
     if not target_ids:
+        bio_data_conn.close()
         raise HTTPException(status_code=404, detail="No targets found for this disease")
 
     target_ids = [row[0] for row in target_ids]
@@ -355,6 +382,7 @@ def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: s
     WHERE a.ChEMBL_id = ? AND a.target_id IN ({placeholders})
     '''
     rows = bio_data_conn.execute(q, [replacement_drug_id, *target_ids]).fetchall()
+    bio_data_conn.close()
 
     res = {}
     for target_id, action_type, mechanism_of_action, ref_source, ref_data in rows:
@@ -364,14 +392,32 @@ def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: s
                 'target_id': target_id,
                 'action_type': action_type,
                 'mechanism_of_action': mechanism_of_action,
-                'refs': []
+                'refs': set()
             }
         if ref_source:
-            res[k]['refs'].append({'ref_source': ref_source, 'ref_data': ref_data})
-
+            res[k]['refs'].update(ref_data)
+    for k in res:
+        res[k]['refs'] = list(res[k]['refs'])
     res = sorted(res.values(), key=lambda x: (x['action_type'] == 'UNIDENTIFIED', x['target_id']))
 
     return res
+
+
+@app.get("/evidence/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=List)
+def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+    management_conn = duckdb.connect(management_db_path, read_only=True)
+    rows = management_conn.execute('''
+        SELECT target_id, action_type, mechanism_of_action, refs
+        FROM evidence
+        WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?''',
+        [disease_id, reference_drug_id, replacement_drug_id]).fetchall()
+    columns = [desc[0] for desc in management_conn.description]
+    rows = [dict(zip(columns, row)) for row in rows]
+    management_conn.close()
+    if rows:
+        return sorted(rows, key=lambda x: (x['action_type'] == 'UNIDENTIFIED', x['target_id']))
+    else:
+        return extract_evidence(disease_id, reference_drug_id, replacement_drug_id)
 
 
 class CalculationStatus(BaseModel):
@@ -406,14 +452,17 @@ class IVPEEntryFullModel(BaseModel):
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
 def get_table_ivpe():
+    management_conn = duckdb.connect(management_db_path, read_only=True)
     rows = management_conn.execute('SELECT * FROM ivpe_table').fetchall()
     columns = [desc[0] for desc in management_conn.description]
+    management_conn.close()
     rows = [dict(zip(columns, row)) for row in rows]
     rows = sorted(rows, key=lambda row: -row['similarity'])
     return rows
 
 @app.put("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
+    management_conn = duckdb.connect(management_db_path)
     try:
         management_conn.execute("""
             INSERT INTO ivpe_table (
@@ -436,17 +485,42 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
             entry.replacement_drug_name,
             entry.evidence])
     except duckdb.ConstraintException:
+        management_conn.close()
         raise HTTPException(status_code=400, detail="Already exists")
+
+    evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
+    evidence_list = [[entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in evidence_list]
+    management_conn.executemany("""
+        INSERT OR IGNORE INTO evidence (
+            disease_id,
+            reference_drug_id,
+            replacement_drug_id,
+            target_id,
+            action_type,
+            mechanism_of_action,
+            refs
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+        evidence_list)
+    management_conn.close()
     return {"success": True, "message": "entry was added successfully"}
 
 @app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+    management_conn = duckdb.connect(management_db_path)
     management_conn.execute("""
         DELETE FROM ivpe_table
         WHERE disease_id = ?
         AND reference_drug_id = ?
         AND replacement_drug_id = ?""", 
         [disease_id, reference_drug_id, replacement_drug_id])
+    management_conn.execute("""
+        DELETE FROM evidence
+        WHERE disease_id = ?
+        AND reference_drug_id = ?
+        AND replacement_drug_id = ?""", 
+        [disease_id, reference_drug_id, replacement_drug_id])
+    management_conn.close()
 
     return {"success": True, "message": "entry was deleted successfully"}
 
@@ -465,6 +539,7 @@ class IVPEEntryUpdateModel(BaseModel):
 
 @app.post("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
+    management_conn = duckdb.connect(management_db_path)
     management_conn.execute("""
         UPDATE ivpe_table 
         SET disease_name = ?,
@@ -490,6 +565,7 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
             entry.reference_drug_id,
             entry.replacement_drug_id
         ])
+    management_conn.close()
 
     return {"success": True, "message": "entry was added successfully"}
 

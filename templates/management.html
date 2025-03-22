@@ -268,10 +268,8 @@
                             <td>${record.mechanism_of_action}</td>
                         `;
                         let refs = '';
-                        record.refs.forEach(ref => {
-                            ref.ref_data.forEach(url => {
-                                refs += `<a href="${url}" target="_blank">${url}</a><br>`;
-                            })
+                        record.refs.forEach(url => {
+                            refs += `<a href="${url}" target="_blank">${url}</a><br>`;
                         })
                         tr.innerHTML += `<td>${refs}</td>`;
                         tbody.appendChild(tr);
