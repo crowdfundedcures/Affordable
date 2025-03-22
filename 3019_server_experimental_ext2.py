@@ -499,6 +499,7 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
         management_conn = duckdb.connect(management_db_path)
     except duckdb.ConnectionException:
         raise HTTPException(status_code=500, detail="Server busy")
+    management_conn.execute("BEGIN TRANSACTION")
     try:
         management_conn.execute("""
             INSERT INTO ivpe_table (
@@ -543,7 +544,9 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)""", 
         evidence_list)
-    
+
+    management_conn.execute("COMMIT")
+
     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after executemany")
     
