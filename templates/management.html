@@ -307,10 +307,10 @@
                     alert("Error: status: " + response.status + ", response: " + await response.text());
                     return;
                 }
-
-                await getIVPETable();
             } catch (error) {
                 console.error("Error fetching data:", error);
+            } finally {
+                await getIVPETable();
             }
         }
 
@@ -530,10 +530,10 @@
                     alert("Error: status: " + response.status + ", response: " + await response.text());
                     return;
                 }
-
-                await getIVPETable();
             } catch (error) {
                 console.error("Error fetching data:", error);
+            } finally {
+                await getIVPETable();
             }
         }
 
@@ -570,10 +570,10 @@
                     alert("Error: status: " + response.status + ", response: " + await response.text());
                     return;
                 }
-
-                await getIVPETable();
             } catch (error) {
                 console.error("Error fetching data:", error);
+            } finally {
+                await getIVPETable();
             }
         }
 
