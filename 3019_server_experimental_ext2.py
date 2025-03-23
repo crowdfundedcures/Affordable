@@ -94,6 +94,12 @@ management_conn.execute("""
 """)
 management_conn.close()
 
+
+bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
+ALL_DISEASES = bio_data_conn.execute('SELECT id, name FROM tbl_diseases').fetchall()
+ALL_SUBSTANCES = bio_data_conn.execute('SELECT ChEMBL_id, name, tradeNames FROM tbl_substances').fetchall()
+bio_data_conn.close()
+
 last_result = {}
 last_calculation_thread: Thread = None
 last_calculation_pair = None
@@ -215,17 +221,11 @@ def register_user(data: dict = Body(...)):
 
 @app.get("/diseases", response_model=List[List], dependencies=[Depends(get_current_user)])
 def get_diseases():
-    bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
-    res = bio_data_conn.execute('SELECT id, name FROM tbl_diseases').fetchall()
-    bio_data_conn.close()
-    return res
+    return ALL_DISEASES
 
 @app.get("/substances", response_model=List[List], dependencies=[Depends(get_current_user)])
 def get_substances():
-    bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
-    res = bio_data_conn.execute('SELECT ChEMBL_id, name, tradeNames FROM tbl_substances').fetchall()
-    bio_data_conn.close()
-    return res
+    return ALL_SUBSTANCES
 
 
 # Serve HTML Pages
