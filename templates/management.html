@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+    <div id="loader" class="b-popup">
+        <div class="spinner" style="margin: 100px auto 0px auto;"></div>
+    </div>
+
     <div class="container">
         <h2>Management Panel</h2>
 
@@ -69,6 +73,13 @@
     </div>
 
     <script>
+        function showLoader() {
+            document.getElementById("loader").style.display = "block";
+        }
+        function hideLoader() {
+            document.getElementById("loader").style.display = "none";
+        }
+
         async function fetchAllDiseases() {
             try {
                 const response = await fetch('/diseases', {
@@ -229,6 +240,7 @@
         }
 
         function showEvidence(disease_id, reference_drug_id, replacement_drug_id) {
+            showLoader();
             fetch(`/evidence/${disease_id}/${reference_drug_id}/${replacement_drug_id}`)
                 .then(response => response.json())
                 .then(data => {
@@ -284,10 +296,14 @@
                 })
                 .catch((error) => {
                     console.error('Error:', error);
+                })
+                .finally(() => {
+                    hideLoader();
                 });
         }
 
         async function deleteEntryFromIVPETable(disease_id, reference_drug_id, replacement_drug_id) {
+            showLoader();
             try {
                 const response = await fetch(`/table_ivpe/${disease_id}/${reference_drug_id}/${replacement_drug_id}`, {
                     method: 'DELETE',
@@ -311,6 +327,7 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getIVPETable();
+                hideLoader();
             }
         }
 
@@ -501,6 +518,7 @@
         }
 
         async function addEntryToIVPETable(similarity, disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, phase) {
+            showLoader();
             try {
                 const response = await fetch(`/table_ivpe`, {
                     method: 'PUT',
@@ -534,10 +552,12 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getIVPETable();
+                hideLoader();
             }
         }
 
         async function updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active) {
+            showLoader();
             try {
                 const response = await fetch(`/table_ivpe`, {
                     method: 'POST',
@@ -574,6 +594,7 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getIVPETable();
+                hideLoader();
             }
         }
 
@@ -725,10 +746,11 @@
             autocomplete(document.getElementById("disease"), await fetchAllDiseases());
             getIVPETable();
             fetchProgress();
+            hideLoader();
         }
 
         document.addEventListener('DOMContentLoaded', function(event) {
-            const calculate_button = document.getElementById("calculate_button")
+            const calculate_button = document.getElementById("calculate_button");
             calculate_button.disabled = true;
             calculate_button.addEventListener("click", calculate);
             fetchAllData();
