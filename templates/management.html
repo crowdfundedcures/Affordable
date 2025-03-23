@@ -45,29 +45,63 @@
             </tbody>
         </table>
 
-        <h3>IVPE Table</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>similarity</th>
-                    <th>disease_id</th>
-                    <th>disease_name</th>
-                    <th>reference_drug_id</th>
-                    <th>reference_drug_name</th>
-                    <th>replacement_drug_id</th>
-                    <th>replacement_drug_name</th>
-                    <th>global_patient_population</th>
-                    <th>cost_difference</th>
-                    <th>evidence</th>
-                    <th>annual_cost_reduction</th>
-                    <th>links</th>
-                    <th>is_active</th>
-                </tr>
-            </thead>
-            <tbody id="ivpe-table-body">
-                <!-- Table rows will be dynamically inserted here -->
-            </tbody>
-        </table>
+        <br>
+        <div>
+            <input style="transform: scale(1.5); margin: 5px;" type="radio" name="table_name" id="ivpe-table-radio" checked><label for="ivpe-table-radio">IVPE</label>
+            <input style="transform: scale(1.5); margin: 5px;" type="radio" name="table_name" id="pfs-table-radio"><label for="pfs-table-radio">PFS</label>
+        </div>
+
+        <div id="ivpe-div">
+            <h3>IVPE Table</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>similarity</th>
+                        <th>disease_id</th>
+                        <th>disease_name</th>
+                        <th>reference_drug_id</th>
+                        <th>reference_drug_name</th>
+                        <th>replacement_drug_id</th>
+                        <th>replacement_drug_name</th>
+                        <th>global_patient_population</th>
+                        <th>cost_difference</th>
+                        <th>evidence</th>
+                        <th>annual_cost_reduction</th>
+                        <th>links</th>
+                        <th>is_active</th>
+                    </tr>
+                </thead>
+                <tbody id="ivpe-table-body">
+                    <!-- Table rows will be dynamically inserted here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pfs-div" style="display: none;">
+            <h3>PFS Table</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>similarity</th>
+                        <th>disease_id</th>
+                        <th>disease_name</th>
+                        <th>reference_drug_id</th>
+                        <th>reference_drug_name</th>
+                        <th>replacement_drug_id</th>
+                        <th>replacement_drug_name</th>
+                        <th>annual_cost_reduction</th>
+                        <th>evidence</th>
+                        <th>global_patient_population</th>
+                        <th>estimated_qaly_impact</th>
+                        <th>links</th>
+                        <th>is_active</th>
+                    </tr>
+                </thead>
+                <tbody id="pfs-table-body">
+                    <!-- Table rows will be dynamically inserted here -->
+                </tbody>
+            </table>
+        </div>
 
         <!-- <button onclick="logout()">Logout</button> -->
     </div>
@@ -79,6 +113,18 @@
         function hideLoader() {
             document.getElementById("loader").style.display = "none";
         }
+
+        function switchTable() {
+            if (document.getElementById("ivpe-table-radio").checked) {
+                document.getElementById("ivpe-div").style.display = "block";
+                document.getElementById("pfs-div").style.display = "none";
+            } else {
+                document.getElementById("ivpe-div").style.display = "none";
+                document.getElementById("pfs-div").style.display = "block";
+            }
+        }
+        document.getElementById("ivpe-table-radio").addEventListener("click", switchTable);
+        document.getElementById("pfs-table-radio").addEventListener("click", switchTable);
 
         async function fetchAllDiseases() {
             try {
@@ -331,6 +377,35 @@
             }
         }
 
+        async function deleteEntryFromPFSTable(disease_id, reference_drug_id, replacement_drug_id) {
+            showLoader();
+            try {
+                const response = await fetch(`/table_pfs/${disease_id}/${reference_drug_id}/${replacement_drug_id}`, {
+                    method: 'DELETE',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                await getPFSTable();
+                hideLoader();
+            }
+        }
+
         async function getIVPETable() {
             try {
                 const response = await fetch('/table_ivpe', {
@@ -384,6 +459,70 @@
                                 <img src="/static/trash.svg" alt="Delete">
                             </button>
                             <button onclick="editEntryInIVPETable(this.parentNode.parentNode)">
+                                <img src="/static/pen.svg" alt="Edit">
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        async function getPFSTable() {
+            try {
+                const response = await fetch('/table_pfs', {
+                    method: 'GET',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+
+                const data = await response.json();
+
+                const tableBody = document.getElementById("pfs-table-body");
+                tableBody.innerHTML = ""; 
+
+                data.forEach(record => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td data-column="similarity">${record.similarity}</td>
+                        <td data-column="disease_id">${record.disease_id}</td>
+                        <td data-column="disease_name">${record.disease_name}</td>
+                        <td data-column="reference_drug_id">${record.reference_drug_id}</td>
+                        <td data-column="reference_drug_name">${record.reference_drug_name}</td>
+                        <td data-column="replacement_drug_id">${record.replacement_drug_id}</td>
+                        <td data-column="replacement_drug_name">${record.replacement_drug_name}</td>
+                        <td data-column="global_patient_population">${record.global_patient_population}</td>
+                        <td data-column="estimated_qaly_impact">${record.estimated_qaly_impact}</td>
+                        <td data-column="evidence">${record.evidence}</td>
+                        <td data-column="annual_cost_reduction">${record.annual_cost_reduction}</td>
+                        <td>
+                            <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
+                                <img src="/static/eye.svg" alt="Show">
+                            </button>
+                        </td>`
+                    if (record.is_active) {
+                        row.innerHTML += `<td data-column="is_active">Yes</td>`
+                    } else {
+                        row.innerHTML += `<td data-column="is_active">No</td>`
+                    }
+                    row.innerHTML += `
+                        <td>
+                            <button class="delete-btn" onclick="deleteEntryFromPFSTable('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
+                                <img src="/static/trash.svg" alt="Delete">
+                            </button>
+                            <button onclick="editEntryInPFSTable(this.parentNode.parentNode)">
                                 <img src="/static/pen.svg" alt="Edit">
                             </button>
                         </td>
@@ -517,6 +656,128 @@
             document.body.appendChild(popup);
         }
 
+        async function editEntryInPFSTable(tr_element) {
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost_reduction, is_active;
+            tr_element.childNodes.forEach(td_element => {
+                if (td_element.nodeType !== Node.TEXT_NODE) {
+                    if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "disease_name") { disease_name = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "reference_drug_id") { reference_drug_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "reference_drug_name") { reference_drug_name = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "replacement_drug_id") { replacement_drug_id = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "replacement_drug_name") { replacement_drug_name = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "estimated_qaly_impact") { estimated_qaly_impact = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "evidence") { evidence = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.innerText === "Yes"; }
+                }
+            })
+
+            const popup = document.createElement("div");
+            popup.setAttribute("id", "edit_pfs_popup");
+            popup.classList.add("b-popup");
+            const popupContent = document.createElement("div");
+            popupContent.classList.add("b-popup-content");
+            popup.appendChild(popupContent);
+            const table_div = document.createElement("div");
+            table_div.classList.add("b-popup-content-table-div");
+            popupContent.appendChild(table_div);
+            const table = document.createElement("table");
+            table_div.appendChild(table);
+            const thead = document.createElement("thead");
+            table.appendChild(thead);
+            const tbody = document.createElement("tbody");
+            table.appendChild(tbody);
+            thead.innerHTML = `
+                <tr>
+                    <th style="text-align: left;">Column</th>
+                    <th style="width: 100%">Value</th>
+                </tr>`
+
+            if (is_active) {
+                is_active_checkbox_el = `<input type="checkbox" style="transform: scale(1.5);" id="edit_pfs_popup_is_active" checked>`
+            } else {
+                is_active_checkbox_el = `<input type="checkbox" style="transform: scale(1.5);" id="edit_pfs_popup_is_active">`
+            }
+            tbody.innerHTML = `
+            <tr><td style="text-align: left;">disease_id</td><td style="text-align: left;">${disease_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">disease_name</td>
+                <td>
+                    <input type="text" value="${disease_name}" style="width: 100%; height: 30px;" id="edit_pfs_popup_disease_name" placeholder="disease_name">
+                </td>
+            </tr>
+            <tr><td style="text-align: left;">reference_drug_id</td><td style="text-align: left;">${reference_drug_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">reference_drug_name</td>
+                <td>
+                    <input type="text" value="${reference_drug_name}" style="width: 100%; height: 30px;" id="edit_pfs_popup_reference_drug_name" placeholder="reference_drug_name">
+                </td>
+            </tr>
+            <tr><td style="text-align: left;">replacement_drug_id</td><td style="text-align: left;">${replacement_drug_id}</td></tr>
+            <tr>
+                <td style="text-align: left;">replacement_drug_name</td>
+                <td>
+                    <input type="text" value="${replacement_drug_name}" style="width: 100%; height: 30px;" id="edit_pfs_popup_replacement_drug_name" placeholder="replacement_drug_name">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">global_patient_population</td>
+                <td>
+                    <input type="text" value="${global_patient_population}" style="width: 100%; height: 30px;" id="edit_pfs_popup_global_patient_population" placeholder="global_patient_population">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">estimated_qaly_impact</td>
+                <td>
+                    <input type="text" value="${estimated_qaly_impact}" style="width: 100%; height: 30px;" id="edit_pfs_popup_estimated_qaly_impact" placeholder="estimated_qaly_impact">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">evidence</td>
+                <td>
+                    <input type="text" value="${evidence}" style="width: 100%; height: 30px;" id="edit_pfs_popup_evidence" placeholder="evidence">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">annual_cost_reduction</td>
+                <td>
+                    <input type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_pfs_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">is_active</td>
+                <td style="text-align: left;">
+                    ${is_active_checkbox_el}
+                </td>
+            </tr>
+            `
+
+            const buttons_div = document.createElement("div");
+            popupContent.appendChild(buttons_div);
+            const close_button = document.createElement("button");
+            buttons_div.appendChild(close_button);
+            close_button.innerText = "Cancel";
+            close_button.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("edit_pfs_popup"))});
+            const save_button = document.createElement("button");
+            buttons_div.appendChild(save_button);
+            save_button.innerText = "Save";
+            save_button.addEventListener("click", async function(event) {
+                const disease_name = document.getElementById("edit_pfs_popup_disease_name").value;
+                const reference_drug_name = document.getElementById("edit_pfs_popup_reference_drug_name").value;
+                const replacement_drug_name = document.getElementById("edit_pfs_popup_replacement_drug_name").value;
+                const global_patient_population = document.getElementById("edit_pfs_popup_global_patient_population").value;
+                const cost_difference = document.getElementById("edit_pfs_popup_estimated_qaly_impact").value;
+                const evidence = document.getElementById("edit_pfs_popup_evidence").value;
+                const annual_cost_reduction = document.getElementById("edit_pfs_popup_annual_cost_reduction").value;
+                const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
+                await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
+                document.body.removeChild(document.getElementById("edit_pfs_popup"));
+            });
+            document.body.appendChild(popup);
+        }
+
         async function addEntryToIVPETable(similarity, disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, phase) {
             showLoader();
             try {
@@ -552,6 +813,45 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getIVPETable();
+                hideLoader();
+            }
+        }
+
+        async function addEntryToPFSTable(similarity, disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, phase) {
+            showLoader();
+            try {
+                const response = await fetch(`/table_pfs`, {
+                    method: 'PUT',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        similarity: similarity,
+                        disease_id: disease_id,
+                        disease_name: disease_name,
+                        reference_drug_id: reference_drug_id,
+                        reference_drug_name: reference_drug_name,
+                        replacement_drug_id: replacement_drug_id,
+                        replacement_drug_name: replacement_drug_name,
+                        evidence: phase
+                    })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                await getPFSTable();
                 hideLoader();
             }
         }
@@ -598,6 +898,48 @@
             }
         }
 
+        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost_reduction, is_active) {
+            showLoader();
+            try {
+                const response = await fetch(`/table_pfs`, {
+                    method: 'POST',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        disease_id: disease_id,
+                        disease_name: disease_name,
+                        reference_drug_id: reference_drug_id,
+                        reference_drug_name: reference_drug_name,
+                        replacement_drug_id: replacement_drug_id,
+                        replacement_drug_name: replacement_drug_name,
+                        global_patient_population: global_patient_population,
+                        estimated_qaly_impact: estimated_qaly_impact,
+                        evidence: evidence,
+                        annual_cost_reduction: annual_cost_reduction,
+                        is_active: is_active
+                    })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                await getPFSTable();
+                hideLoader();
+            }
+        }
+
         function fetchLastResult() {
             fetch('/last_calculation_result')
                 .then(response => response.json())
@@ -638,6 +980,7 @@
                             </td>
                             <td>
                                 <button onclick="addEntryToIVPETable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to IVPE table</button>
+                                <button onclick="addEntryToPFSTable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to PFS table</button>
                             </td>
                         `;
                         tableBody.appendChild(row);
@@ -668,6 +1011,7 @@
                             </td>
                             <td>
                                 <button onclick="addEntryToIVPETable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to IVPE table</button>
+                                <button onclick="addEntryToPFSTable(${similarity}, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${replacement_drug_id}', '${replacement_drug_name}', '${phase}')">Add to PFS table</button>
                             </td>
                         `;
                         tableBody.appendChild(row);
@@ -745,6 +1089,7 @@
             autocomplete(document.getElementById("reference_drug"), allDrugs);
             autocomplete(document.getElementById("disease"), await fetchAllDiseases());
             getIVPETable();
+            getPFSTable();
             fetchProgress();
             hideLoader();
         }

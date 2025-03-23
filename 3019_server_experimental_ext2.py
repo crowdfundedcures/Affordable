@@ -84,10 +84,10 @@ management_conn.execute("""
         reference_drug_name TEXT NOT NULL,
         replacement_drug_id TEXT NOT NULL,
         replacement_drug_name TEXT NOT NULL,
-        annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
-        evidence TEXT NOT NULL,
         global_patient_population TEXT NOT NULL DEFAULT 'N/A',
         estimated_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
+        evidence TEXT NOT NULL,
+        annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
         is_active BOOLEAN NOT NULL DEFAULT 0,
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
@@ -480,6 +480,20 @@ class IVPEEntryFullModel(BaseModel):
     annual_cost_reduction: Optional[str] = None
     is_active: Optional[bool] = None
 
+class PFSEntryFullModel(BaseModel):
+    similarity: float|int
+    disease_id: str
+    disease_name: str
+    reference_drug_id: str
+    reference_drug_name: str
+    replacement_drug_id: str
+    replacement_drug_name: str
+    global_patient_population: Optional[str] = None
+    estimated_qaly_impact: Optional[str] = None
+    evidence: str
+    annual_cost_reduction: Optional[str] = None
+    is_active: Optional[bool] = None
+
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
 def get_table_ivpe():
     try:
@@ -487,6 +501,19 @@ def get_table_ivpe():
     except duckdb.ConnectionException:
         raise HTTPException(status_code=500, detail="Server busy")
     rows = management_conn.execute('SELECT * FROM ivpe_table').fetchall()
+    columns = [desc[0] for desc in management_conn.description]
+    management_conn.close()
+    rows = [dict(zip(columns, row)) for row in rows]
+    rows = sorted(rows, key=lambda row: -row['similarity'])
+    return rows
+
+@app.get("/table_pfs", response_model=List[PFSEntryFullModel])
+def get_table_pfs():
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    rows = management_conn.execute('SELECT * FROM pfs_table').fetchall()
     columns = [desc[0] for desc in management_conn.description]
     management_conn.close()
     rows = [dict(zip(columns, row)) for row in rows]
@@ -527,11 +554,11 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
 
     evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
     evidence_list = [[entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in evidence_list]
-    
+
     # debug
     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - before executemany")
-    
+
     management_conn.executemany("""
         INSERT OR IGNORE INTO evidence (
             disease_id,
@@ -549,14 +576,79 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
 
     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after executemany")
-    
+
     management_conn.close()
-    
+
     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after close")
-    
-    
+
     return {"success": True, "message": "entry was added successfully"}
+
+
+@app.put("/table_pfs", response_model=Dict, dependencies=[Depends(get_current_user)])
+def add_entry_to_table_pfs(entry: PFSEntryFullModel):
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    management_conn.execute("BEGIN TRANSACTION")
+    try:
+        management_conn.execute("""
+            INSERT INTO pfs_table (
+                similarity,
+                disease_id,
+                disease_name,
+                reference_drug_id,
+                reference_drug_name,
+                replacement_drug_id,
+                replacement_drug_name,
+                evidence
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
+            [entry.similarity,
+            entry.disease_id,
+            entry.disease_name,
+            entry.reference_drug_id,
+            entry.reference_drug_name,
+            entry.replacement_drug_id,
+            entry.replacement_drug_name,
+            entry.evidence])
+    except duckdb.ConstraintException:
+        management_conn.close()
+        raise HTTPException(status_code=400, detail="Already exists")
+
+    evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
+    evidence_list = [[entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in evidence_list]
+
+    # debug
+    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - before executemany")
+
+    management_conn.executemany("""
+        INSERT OR IGNORE INTO evidence (
+            disease_id,
+            reference_drug_id,
+            replacement_drug_id,
+            target_id,
+            action_type,
+            mechanism_of_action,
+            refs
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+        evidence_list)
+
+    management_conn.execute("COMMIT")
+
+    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after executemany")
+
+    management_conn.close()
+
+    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after close")
+
+    return {"success": True, "message": "entry was added successfully"}
+
 
 @app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
 def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
@@ -570,12 +662,37 @@ def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacem
         AND reference_drug_id = ?
         AND replacement_drug_id = ?""", 
         [disease_id, reference_drug_id, replacement_drug_id])
+    if not management_conn.execute('SELECT * FROM pfs_table WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?', [disease_id, reference_drug_id, replacement_drug_id]).fetchone():
+        management_conn.execute("""
+            DELETE FROM evidence
+            WHERE disease_id = ?
+            AND reference_drug_id = ?
+            AND replacement_drug_id = ?""", 
+            [disease_id, reference_drug_id, replacement_drug_id])
+    management_conn.close()
+
+    return {"success": True, "message": "entry was deleted successfully"}
+
+
+@app.delete("/table_pfs/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
+def update_entry_in_table_pfs(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
     management_conn.execute("""
-        DELETE FROM evidence
+        DELETE FROM pfs_table
         WHERE disease_id = ?
         AND reference_drug_id = ?
         AND replacement_drug_id = ?""", 
         [disease_id, reference_drug_id, replacement_drug_id])
+    if not management_conn.execute('SELECT * FROM ivpe_table WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?', [disease_id, reference_drug_id, replacement_drug_id]).fetchone():
+        management_conn.execute("""
+            DELETE FROM evidence
+            WHERE disease_id = ?
+            AND reference_drug_id = ?
+            AND replacement_drug_id = ?""", 
+            [disease_id, reference_drug_id, replacement_drug_id])
     management_conn.close()
 
     return {"success": True, "message": "entry was deleted successfully"}
@@ -589,6 +706,19 @@ class IVPEEntryUpdateModel(BaseModel):
     replacement_drug_name: str
     global_patient_population: str
     cost_difference: str
+    evidence: str
+    annual_cost_reduction: str
+    is_active: bool
+
+class PFSEntryUpdateModel(BaseModel):
+    disease_id: str
+    disease_name: str
+    reference_drug_id: str
+    reference_drug_name: str
+    replacement_drug_id: str
+    replacement_drug_name: str
+    global_patient_population: str
+    estimated_qaly_impact: str
     evidence: str
     annual_cost_reduction: str
     is_active: bool
@@ -616,6 +746,41 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
             entry.replacement_drug_name,
             entry.global_patient_population,
             entry.cost_difference,
+            entry.evidence,
+            entry.annual_cost_reduction,
+            entry.is_active,
+
+            entry.disease_id,
+            entry.reference_drug_id,
+            entry.replacement_drug_id
+        ])
+    management_conn.close()
+
+    return {"success": True, "message": "entry was added successfully"}
+
+@app.post("/table_pfs", response_model=Dict, dependencies=[Depends(get_current_user)])
+def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    management_conn.execute("""
+        UPDATE pfs_table 
+        SET disease_name = ?,
+            reference_drug_name = ?,
+            replacement_drug_name = ?,
+            global_patient_population = ?,
+            estimated_qaly_impact = ?,
+            evidence = ?,
+            annual_cost_reduction = ?,
+            is_active = ?
+        WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+        [
+            entry.disease_name,
+            entry.reference_drug_name,
+            entry.replacement_drug_name,
+            entry.global_patient_population,
+            entry.estimated_qaly_impact,
             entry.evidence,
             entry.annual_cost_reduction,
             entry.is_active,
