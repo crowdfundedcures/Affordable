@@ -3,7 +3,7 @@ import json
 from threading import Thread
 import duckdb
 from fastapi import FastAPI, Query, HTTPException, Depends, status, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
@@ -14,7 +14,6 @@ from pydantic import BaseModel
 from hashlib import sha256
 import hashlib
 import secrets
-from fastapi import FastAPI, HTTPException, Depends, status
 import datetime as dt
 
 
@@ -38,14 +37,7 @@ bio_data_db_path = "bio_data.duck.db"
 
 # Database Initialization
 management_conn = duckdb.connect(management_db_path)
-management_conn.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id BIGINT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        token TEXT
-    )
-""")
+
 management_conn.execute("""
     CREATE TABLE IF NOT EXISTS evidence (
         disease_id TEXT NOT NULL,
@@ -105,6 +97,10 @@ last_calculation_thread: Thread = None
 last_calculation_pair = None
 last_calculation_progress: float = None # from 0 to 1
 
+with open('users.txt', encoding='utf-8') as f:
+    USERS = dict(line.split(maxsplit=1) for line in f.read().strip().split('\n'))
+ 
+active_auth_tokens = dict()
 
 # OAuth2 authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -115,7 +111,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Authentication Middleware
-from fastapi import Header, HTTPException, Depends, Request
 
 def get_current_user(request: Request):
     token = request.cookies.get("token")  # ✅ Get token from the cookie
@@ -124,17 +119,12 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="No authentication token provided")
 
     # Validate token against stored tokens
-    try:
-        management_conn = duckdb.connect(management_db_path, read_only=True)
-    except duckdb.ConnectionException:
-        raise HTTPException(status_code=500, detail="Server busy")
-    user = management_conn.execute("SELECT username FROM users WHERE token = ?", [token]).fetchone()
-    management_conn.close()
+    username = active_auth_tokens.get(token)
 
-    if not user:
+    if not username:
         raise HTTPException(status_code=401, detail="Invalid token or user not authenticated")
 
-    return user[0]  # ✅ Return the authenticated username
+    return username  # ✅ Return the authenticated username
 
 
 
@@ -145,40 +135,31 @@ def root():
 
 
 # Secure Token Generation
-# Secure token generation
 def generate_token(username):
     random_string = secrets.token_hex(16)  # Generate random 16-byte string
     hashed_token = hashlib.sha256(f"{username}{random_string}".encode()).hexdigest()
     return hashed_token
 
-from fastapi.responses import JSONResponse
-
 
 @app.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    hashed_password = sha256(form_data.password.encode()).hexdigest()
-    
-    try:
-        management_conn = duckdb.connect(management_db_path)
-    except duckdb.ConnectionException:
-        raise HTTPException(status_code=500, detail="Server busy")
-    user = management_conn.execute("SELECT username FROM users WHERE username=? AND password=?", 
-                        [form_data.username, hashed_password]).fetchone()
-
-    if not user:
-        management_conn.close()
+    if USERS.get(form_data.username) != form_data.password:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    token = generate_token(user[0])  # ✅ Generate secure token
+    new_token = generate_token(form_data.username)  # ✅ Generate secure token
 
-    # ✅ Store token in DB for validation
-    management_conn.execute("UPDATE users SET token=? WHERE username=?", [token, user[0]])
-    management_conn.close()
+    # Remove old token
+    for token, username in list(active_auth_tokens.items()):
+        if username == form_data.username:
+            active_auth_tokens.pop(token)
+
+    # ✅ Store new token
+    active_auth_tokens[new_token] = form_data.username
 
     response = JSONResponse(content={"message": "Login successful"})
     response.set_cookie(
         key="token", 
-        value=token, 
+        value=new_token, 
         httponly=True,  # ✅ Secure against XSS
         secure=True,  # ✅ Use secure cookies
         samesite="Lax",  # ✅ Allow cross-page access
@@ -189,34 +170,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 
-
-
-from fastapi import Body
-
-@app.post("/register")
-def register_user(data: dict = Body(...)):
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="Username and password are required")
-
-    hashed_password = sha256(password.encode()).hexdigest()  # ✅ Hash password before storing
-    try:
-        management_conn = duckdb.connect(management_db_path)
-    except duckdb.ConnectionException:
-        raise HTTPException(status_code=500, detail="Server busy")
-    new_id = management_conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM users").fetchone()[0]
-
-    try:
-        management_conn.execute("INSERT INTO users (id, username, password) VALUES (?, ?, ?)", 
-                     [new_id, username, hashed_password])
-        management_conn.close()
-    except duckdb.ConstraintException:
-        management_conn.close()
-        raise HTTPException(status_code=400, detail="Username already exists")
-    
-    return {"message": "User registered successfully"}
 
 
 @app.get("/diseases", response_model=List[List], dependencies=[Depends(get_current_user)])
@@ -236,10 +189,6 @@ def admin_page(request: Request):
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
-
-@app.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
 
 @app.get("/management", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 def management_page(request: Request):

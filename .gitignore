@@ -14,3 +14,4 @@ data_tmp/*
 !data_tmp/README.md
 logs/
 *.tmp
+users.txt
