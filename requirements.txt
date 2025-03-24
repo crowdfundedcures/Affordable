@@ -11,6 +11,6 @@ uvicorn==0.34.0
 parquet==1.3.1
 pyarrow==19.0.1
 requests==2.32.3
-jinja2
-python-multipart
+Jinja2==3.1.6
+python-multipart==0.0.20
 
