@@ -13,6 +13,7 @@ FILE_NAME = "release_data_integrity"
 CHECKSUM_FILE_NAME = "release_data_integrity.sha1"
 LOCAL_FOLDER = "./data/202409XX/"
 
+os.makedirs(LOCAL_FOLDER, exist_ok=True)
 
 # Local file paths
 LOCAL_FILE = os.path.join(os.getcwd(), LOCAL_FOLDER, FILE_NAME)
