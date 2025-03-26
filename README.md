@@ -10,11 +10,8 @@ pip install -r requirements.txt
 # 3. to download the database (might take 4-6 hours)
 python 5000_script_runner_contiguous.py
 
-# 4. to run the test
-python 0919_top_k_disease_targeted_similarity_sorted_by_evidence.py
-
-# 5. to run the server
-python 3015_server_full_scoring.py
+# 4. to run the server
+python 3019_server_experimental_ext2.py
 ```
 
 
