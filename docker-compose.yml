@@ -1,0 +1,13 @@
+
+services:
+  bio_data_web_server:
+    build: .
+    image: bio_data_web_server
+    container_name: bio_data_web_server
+    volumes:
+      - ./bio_data.duck.db:/app/bio_data.duck.db
+      - ./management.duck.db:/app/management.duck.db
+      - ./users.txt:/app/users.txt
+    ports:
+      - "7334:7334"
+    restart: always
