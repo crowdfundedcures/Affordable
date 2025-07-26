@@ -743,6 +743,38 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
     return {"success": True, "message": "entry was added successfully"}
 
 
+class AskAIModel(BaseModel):
+    disease_id: str
+    reference_drug_id: str
+    replacement_drug_id: str
+    field_name: str
+
+
+@app.post("/ask_ai", response_model=Dict, dependencies=[Depends(get_current_user)])
+def ask_ai(req: AskAIModel):
+    try:
+        bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    disease_name = bio_data_conn.execute('SELECT name FROM tbl_diseases WHERE id = ?', [req.disease_id]).fetchone()[0]
+    reference_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [req.reference_drug_id]).fetchone()[0]
+    replacement_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [req.replacement_drug_id]).fetchone()[0]
+    bio_data_conn.close()
+
+    field_name = req.field_name
+
+    if field_name == 'global_patient_population':
+        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+    elif field_name == 'cost_difference':
+        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+    elif field_name == 'estimated_qaly_impact':
+        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+    elif field_name == 'annual_cost_reduction':
+        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+
+    return {"success": True, "value": value}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7334)

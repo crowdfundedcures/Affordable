@@ -78,12 +78,12 @@ button:hover {
     overflow: hidden;
     position: fixed;
     top: 0px;
-    z-index: 99;
+    z-index: 10;
 }
 .b-popup-content {
     margin: 40px auto 0px auto;
     width: 90%;
-    max-height: 700px;
+    max-height: 800px;
     padding: 10px;
     background-color: #ffffff;
     border-radius: 5px;
@@ -93,8 +93,15 @@ button:hover {
     padding: 10px;
 }
 .b-popup-content-table-div {
-    max-height: 600px;
+    max-height: 700px;
     overflow-y: auto;
+}
+.b-popup-content-table-div td, .b-popup-content-table-div th {
+    text-align: left;
+}
+
+#loader {
+    z-index: 99;
 }
 
 

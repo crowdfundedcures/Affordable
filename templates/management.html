@@ -569,7 +569,7 @@
             table.appendChild(tbody);
             thead.innerHTML = `
                 <tr>
-                    <th style="text-align: left;">Column</th>
+                    <th>Column</th>
                     <th style="width: 100%">Value</th>
                 </tr>`
 
@@ -579,54 +579,54 @@
                 is_active_checkbox_el = `<input type="checkbox" style="transform: scale(1.5);" id="edit_ivpe_popup_is_active">`
             }
             tbody.innerHTML = `
-            <tr><td style="text-align: left;">disease_id</td><td style="text-align: left;">${disease_id}</td></tr>
+            <tr><td>disease_id</td><td>${disease_id}</td></tr>
             <tr>
-                <td style="text-align: left;">disease_name</td>
+                <td>disease_name</td>
                 <td>
                     <input type="text" value="${disease_name}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_disease_name" placeholder="disease_name">
                 </td>
             </tr>
-            <tr><td style="text-align: left;">reference_drug_id</td><td style="text-align: left;">${reference_drug_id}</td></tr>
+            <tr><td>reference_drug_id</td><td>${reference_drug_id}</td></tr>
             <tr>
-                <td style="text-align: left;">reference_drug_name</td>
+                <td>reference_drug_name</td>
                 <td>
                     <input type="text" value="${reference_drug_name}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_reference_drug_name" placeholder="reference_drug_name">
                 </td>
             </tr>
-            <tr><td style="text-align: left;">replacement_drug_id</td><td style="text-align: left;">${replacement_drug_id}</td></tr>
+            <tr><td>replacement_drug_id</td><td>${replacement_drug_id}</td></tr>
             <tr>
-                <td style="text-align: left;">replacement_drug_name</td>
+                <td>replacement_drug_name</td>
                 <td>
                     <input type="text" value="${replacement_drug_name}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_replacement_drug_name" placeholder="replacement_drug_name">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">global_patient_population</td>
+                <td>global_patient_population</td>
                 <td>
                     <input type="text" value="${global_patient_population}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_global_patient_population" placeholder="global_patient_population">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">cost_difference</td>
+                <td>cost_difference</td>
                 <td>
                     <input type="text" value="${cost_difference}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_cost_difference" placeholder="cost_difference">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">evidence</td>
+                <td>evidence</td>
                 <td>
                     <input type="text" value="${evidence}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_evidence" placeholder="evidence">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">annual_cost_reduction</td>
+                <td>annual_cost_reduction</td>
                 <td>
                     <input type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">is_active</td>
-                <td style="text-align: left;">
+                <td>is_active</td>
+                <td>
                     ${is_active_checkbox_el}
                 </td>
             </tr>
@@ -654,6 +654,22 @@
                 document.body.removeChild(document.getElementById("edit_ivpe_popup"));
             });
             document.body.appendChild(popup);
+
+            ["global_patient_population", "cost_difference", "annual_cost_reduction"].forEach(field_name => {
+                const input_el = document.getElementById("edit_ivpe_popup_" + field_name);
+                const ask_AI_button = document.createElement("button");
+                ask_AI_button.innerText = "Ask AI";
+                ask_AI_button.addEventListener("click", async function(event) {
+                    const ai_resp = await askAI({
+                        field_name: field_name,
+                        disease_id: disease_id,
+                        reference_drug_id: reference_drug_id,
+                        replacement_drug_id: replacement_drug_id
+                    });
+                    if (ai_resp) {input_el.value = ai_resp;}
+                });
+                input_el.parentElement.appendChild(ask_AI_button);
+            });
         }
 
         async function editEntryInPFSTable(tr_element) {
@@ -691,7 +707,7 @@
             table.appendChild(tbody);
             thead.innerHTML = `
                 <tr>
-                    <th style="text-align: left;">Column</th>
+                    <th>Column</th>
                     <th style="width: 100%">Value</th>
                 </tr>`
 
@@ -701,54 +717,54 @@
                 is_active_checkbox_el = `<input type="checkbox" style="transform: scale(1.5);" id="edit_pfs_popup_is_active">`
             }
             tbody.innerHTML = `
-            <tr><td style="text-align: left;">disease_id</td><td style="text-align: left;">${disease_id}</td></tr>
+            <tr><td>disease_id</td><td>${disease_id}</td></tr>
             <tr>
-                <td style="text-align: left;">disease_name</td>
+                <td>disease_name</td>
                 <td>
                     <input type="text" value="${disease_name}" style="width: 100%; height: 30px;" id="edit_pfs_popup_disease_name" placeholder="disease_name">
                 </td>
             </tr>
-            <tr><td style="text-align: left;">reference_drug_id</td><td style="text-align: left;">${reference_drug_id}</td></tr>
+            <tr><td>reference_drug_id</td><td>${reference_drug_id}</td></tr>
             <tr>
-                <td style="text-align: left;">reference_drug_name</td>
+                <td>reference_drug_name</td>
                 <td>
                     <input type="text" value="${reference_drug_name}" style="width: 100%; height: 30px;" id="edit_pfs_popup_reference_drug_name" placeholder="reference_drug_name">
                 </td>
             </tr>
-            <tr><td style="text-align: left;">replacement_drug_id</td><td style="text-align: left;">${replacement_drug_id}</td></tr>
+            <tr><td>replacement_drug_id</td><td>${replacement_drug_id}</td></tr>
             <tr>
-                <td style="text-align: left;">replacement_drug_name</td>
+                <td>replacement_drug_name</td>
                 <td>
                     <input type="text" value="${replacement_drug_name}" style="width: 100%; height: 30px;" id="edit_pfs_popup_replacement_drug_name" placeholder="replacement_drug_name">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">global_patient_population</td>
+                <td>global_patient_population</td>
                 <td>
                     <input type="text" value="${global_patient_population}" style="width: 100%; height: 30px;" id="edit_pfs_popup_global_patient_population" placeholder="global_patient_population">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">estimated_qaly_impact</td>
+                <td>estimated_qaly_impact</td>
                 <td>
                     <input type="text" value="${estimated_qaly_impact}" style="width: 100%; height: 30px;" id="edit_pfs_popup_estimated_qaly_impact" placeholder="estimated_qaly_impact">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">evidence</td>
+                <td>evidence</td>
                 <td>
                     <input type="text" value="${evidence}" style="width: 100%; height: 30px;" id="edit_pfs_popup_evidence" placeholder="evidence">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">annual_cost_reduction</td>
+                <td>annual_cost_reduction</td>
                 <td>
                     <input type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_pfs_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">is_active</td>
-                <td style="text-align: left;">
+                <td>is_active</td>
+                <td>
                     ${is_active_checkbox_el}
                 </td>
             </tr>
@@ -776,6 +792,22 @@
                 document.body.removeChild(document.getElementById("edit_pfs_popup"));
             });
             document.body.appendChild(popup);
+
+            ["global_patient_population", "estimated_qaly_impact", "annual_cost_reduction"].forEach(field_name => {
+                const input_el = document.getElementById("edit_pfs_popup_" + field_name);
+                const ask_AI_button = document.createElement("button");
+                ask_AI_button.innerText = "Ask AI";
+                ask_AI_button.addEventListener("click", async function(event) {
+                    const ai_resp = await askAI({
+                        field_name: field_name,
+                        disease_id: disease_id,
+                        reference_drug_id: reference_drug_id,
+                        replacement_drug_id: replacement_drug_id
+                    });
+                    if (ai_resp) {input_el.value = ai_resp;}
+                });
+                input_el.parentElement.appendChild(ask_AI_button);
+            });
         }
 
         async function addEntryToIVPETable(similarity, disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, phase) {
@@ -936,6 +968,43 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getPFSTable();
+                hideLoader();
+            }
+        }
+
+        async function askAI(request) {
+            showLoader();
+            try {
+                const response = await fetch(`/ask_ai`, {
+                    method: 'POST',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(request)
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+
+                const data = await response.json();
+                if (data["value"]) {
+                    return data["value"];
+                } else {
+                    alert("Error: incorrect or empty response");
+                    return;
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
                 hideLoader();
             }
         }
