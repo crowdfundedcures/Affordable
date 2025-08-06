@@ -625,7 +625,7 @@
             <tr>
                 <td>annual_cost_reduction</td>
                 <td>
-                    <input type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
+                    <input readonly type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
                 </td>
             </tr>
             <tr>
@@ -664,6 +664,25 @@
                 }
             });
             document.body.appendChild(popup);
+
+            document.getElementById("edit_ivpe_popup_global_patient_population").addEventListener('input', function() {
+                const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value;
+                const global_patient_population = this.value;
+                if (isStringNumeric(global_patient_population) && isStringNumeric(cost_difference)) {
+                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = Number(global_patient_population) * Number(cost_difference);
+                } else {
+                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = "N/A";
+                }
+            });
+            document.getElementById("edit_ivpe_popup_cost_difference").addEventListener('input', function() {
+                const cost_difference = this.value;
+                const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value;
+                if (isStringNumeric(cost_difference) && isStringNumeric(global_patient_population)) {
+                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = Number(global_patient_population) * Number(cost_difference);
+                } else {
+                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = "N/A";
+                }
+            });
 
             ["global_patient_population", "cost_difference"].forEach(field_name => {
                 const input_el = document.getElementById("edit_ivpe_popup_" + field_name);
