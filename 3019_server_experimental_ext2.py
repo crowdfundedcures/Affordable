@@ -796,7 +796,7 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
             reference_drug_id,
             replacement_drug_id,
             field_name,
-            dt.datetime.now().isoformat(sep=' ', timespec='seconds'),
+            dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             ai_log])
     except duckdb.ConstraintException:
         raise HTTPException(status_code=400, detail="Already exists")

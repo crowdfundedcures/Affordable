@@ -174,6 +174,10 @@
             }
         }
 
+        function isStringNumeric(str) {
+            return typeof str === 'string' && str.trim() !== '' && !isNaN(Number(str))
+        }
+
         function autocomplete(inp, arr) {
             /*the autocomplete function takes two arguments,
             the text field element and an array of possible autocompleted values:*/
@@ -650,8 +654,14 @@
                 const evidence = document.getElementById("edit_ivpe_popup_evidence").value;
                 const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
-                await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
-                document.body.removeChild(document.getElementById("edit_ivpe_popup"));
+                if (!isStringNumeric(global_patient_population)) {
+                    alert('The value of "global_patient_population" must be numeric.')
+                } else if (!isStringNumeric(cost_difference)) {
+                    alert('The value of "cost_difference" must be numeric.')
+                } else {
+                    await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
+                    document.body.removeChild(document.getElementById("edit_ivpe_popup"));
+                }
             });
             document.body.appendChild(popup);
 
@@ -686,7 +696,7 @@
                         table.appendChild(tbody);
                         thead.innerHTML = `
                             <tr>
-                                <th>Datetime</th>
+                                <th>Datetime (UTC)</th>
                                 <th style="width: 100%">Log</th>
                             </tr>`
                         ai_logs.forEach(record => {
@@ -706,6 +716,12 @@
                     }
                 });
                 input_el.parentElement.appendChild(AI_logs_button);
+
+                input_el.addEventListener('input', function() {
+                    if (!isStringNumeric(this.value)) { this.style.color = 'red' }
+                    else { this.style.color = null }
+                });
+                input_el.dispatchEvent(new Event('input'));
             });
         }
 
@@ -821,12 +837,20 @@
                 const reference_drug_name = document.getElementById("edit_pfs_popup_reference_drug_name").value;
                 const replacement_drug_name = document.getElementById("edit_pfs_popup_replacement_drug_name").value;
                 const global_patient_population = document.getElementById("edit_pfs_popup_global_patient_population").value;
-                const cost_difference = document.getElementById("edit_pfs_popup_estimated_qaly_impact").value;
+                const estimated_qaly_impact = document.getElementById("edit_pfs_popup_estimated_qaly_impact").value;
                 const evidence = document.getElementById("edit_pfs_popup_evidence").value;
                 const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value;
                 const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
-                await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost, is_active);
-                document.body.removeChild(document.getElementById("edit_pfs_popup"));
+                if (!isStringNumeric(global_patient_population)) {
+                    alert('The value of "global_patient_population" must be numeric.')
+                } else if (!isStringNumeric(estimated_qaly_impact)) {
+                    alert('The value of "estimated_qaly_impact" must be numeric.')
+                } else if (!isStringNumeric(annual_cost)) {
+                    alert('The value of "annual_cost" must be numeric.')
+                } else {
+                    await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, is_active);
+                    document.body.removeChild(document.getElementById("edit_pfs_popup"));
+                }
             });
             document.body.appendChild(popup);
 
@@ -861,7 +885,7 @@
                         table.appendChild(tbody);
                         thead.innerHTML = `
                             <tr>
-                                <th>Datetime</th>
+                                <th>Datetime (UTC)</th>
                                 <th style="width: 100%">Log</th>
                             </tr>`
                         ai_logs.forEach(record => {
@@ -881,6 +905,12 @@
                     }
                 });
                 input_el.parentElement.appendChild(AI_logs_button);
+
+                input_el.addEventListener('input', function() {
+                    if (!isStringNumeric(this.value)) { this.style.color = 'red' }
+                    else { this.style.color = null }
+                });
+                input_el.dispatchEvent(new Event('input'));
             });
         }
 
@@ -1132,6 +1162,28 @@
                     const reference_drug_id = data.reference_drug["ChEMBL ID"];
                     const reference_drug_name = data.reference_drug["Molecule Name"];
                     let i = 0;
+                    const row = document.createElement("tr");
+                    const phase = `Phase ${data.reference_drug["phase"]} (status: ${data.reference_drug["status"]})`
+                    row.innerHTML = `
+                        <td>${i}</td>
+                        <td>${disease_id}</td>
+                        <td>${reference_drug_id}</td>
+                        <td>${reference_drug_id}</td>
+                        <td>${reference_drug_name}</td>
+                        <td>1</td>
+                        <td>${data.reference_drug["isApproved"]}</td>
+                        <td>${data.reference_drug["isUrlAvailable"]}</td>
+                        <td>${phase}</td>
+                        <td>
+                            <button onclick="showEvidence('${disease_id}', '${reference_drug_id}', '${reference_drug_id}')">
+                                <img src="/static/eye.svg" alt="Show">
+                            </button>
+                        </td>
+                        <td>
+                            <button onclick="addEntryToPFSTable(1, '${disease_id}', '${disease_name}', '${reference_drug_id}', '${reference_drug_name}', '${reference_drug_id}', '${reference_drug_name}', '${phase}')">Add to PFS table</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
                     data.similar_drugs_primary.forEach(record => {
                         const row = document.createElement("tr");
                         const replacement_drug_id = record["ChEMBL ID"];
