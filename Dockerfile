@@ -6,6 +6,7 @@ COPY requirements.txt ./
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY 3019_server_experimental_ext2.py ./main.py
+COPY ai_lib.py ./ai_lib.py
 COPY static ./static/
 COPY templates ./templates/
 

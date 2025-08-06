@@ -1,20 +1,21 @@
 import os
 import json
-from threading import Thread
-import duckdb
-from fastapi import FastAPI, Query, HTTPException, Depends, status, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.responses import RedirectResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-import numpy as np
-from typing import List, Dict, Optional
-from pydantic import BaseModel
-from hashlib import sha256
 import hashlib
 import secrets
 import datetime as dt
+from threading import Thread
+from typing import List, Dict, Optional
+
+import duckdb
+import numpy as np
+from pydantic import BaseModel
+from fastapi import FastAPI, Query, HTTPException, Depends, status, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+
+import ai_lib
 
 
 
@@ -765,17 +766,13 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
     bio_data_conn.close()
 
     if field_name == 'global_patient_population':
-        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
-        ai_log = 'test_log'
+        value, full_response = ai_lib.get_global_patient_population(disease_name, reference_drug_name, replacement_drug_name)
     elif field_name == 'cost_difference':
-        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
-        ai_log = 'test_log'
+        value, full_response = ai_lib.get_cost_difference(disease_name, reference_drug_name, replacement_drug_name)
     elif field_name == 'estimated_qaly_impact':
-        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
-        ai_log = 'test_log'
+        value, full_response = ai_lib.get_estimated_qaly_impact(disease_name, reference_drug_name, replacement_drug_name)
     elif field_name == 'annual_cost':
-        value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
-        ai_log = 'test_log'
+        value, full_response = ai_lib.get_annual_cost(disease_name, reference_drug_name, replacement_drug_name)
 
     try:
         management_conn = duckdb.connect(management_db_path)
@@ -797,7 +794,7 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
             replacement_drug_id,
             field_name,
             dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-            ai_log])
+            full_response])
     except duckdb.ConstraintException:
         raise HTTPException(status_code=400, detail="Already exists")
     finally:
