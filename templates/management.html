@@ -89,7 +89,7 @@
                         <th>reference_drug_name</th>
                         <th>replacement_drug_id</th>
                         <th>replacement_drug_name</th>
-                        <th>annual_cost_reduction</th>
+                        <th>annual_cost</th>
                         <th>evidence</th>
                         <th>global_patient_population</th>
                         <th>estimated_qaly_impact</th>
@@ -506,7 +506,7 @@
                         <td data-column="global_patient_population">${record.global_patient_population}</td>
                         <td data-column="estimated_qaly_impact">${record.estimated_qaly_impact}</td>
                         <td data-column="evidence">${record.evidence}</td>
-                        <td data-column="annual_cost_reduction">${record.annual_cost_reduction}</td>
+                        <td data-column="annual_cost">${record.annual_cost}</td>
                         <td>
                             <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
                                 <img src="/static/eye.svg" alt="Show">
@@ -655,25 +655,62 @@
             });
             document.body.appendChild(popup);
 
-            ["global_patient_population", "cost_difference", "annual_cost_reduction"].forEach(field_name => {
+            ["global_patient_population", "cost_difference"].forEach(field_name => {
                 const input_el = document.getElementById("edit_ivpe_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
                 ask_AI_button.addEventListener("click", async function(event) {
-                    const ai_resp = await askAI({
-                        field_name: field_name,
-                        disease_id: disease_id,
-                        reference_drug_id: reference_drug_id,
-                        replacement_drug_id: replacement_drug_id
-                    });
+                    const ai_resp = await askAI(disease_id, reference_drug_id, replacement_drug_id, field_name);
                     if (ai_resp) {input_el.value = ai_resp;}
                 });
                 input_el.parentElement.appendChild(ask_AI_button);
+                const AI_logs_button = document.createElement("button");
+                AI_logs_button.innerText = "AI logs";
+                AI_logs_button.addEventListener("click", async function(event) {
+                    const ai_logs = await getAILogs(disease_id, reference_drug_id, replacement_drug_id, field_name);
+                    if (ai_logs) {
+                        const popup = document.createElement("div");
+                        popup.setAttribute("id", "ai_logs");
+                        popup.classList.add("b-popup");
+                        const popupContent = document.createElement("div");
+                        popupContent.classList.add("b-popup-content");
+                        popup.appendChild(popupContent);
+                        const table_div = document.createElement("div");
+                        table_div.classList.add("b-popup-content-table-div");
+                        popupContent.appendChild(table_div);
+                        const table = document.createElement("table");
+                        table_div.appendChild(table);
+                        const thead = document.createElement("thead");
+                        table.appendChild(thead);
+                        const tbody = document.createElement("tbody");
+                        table.appendChild(tbody);
+                        thead.innerHTML = `
+                            <tr>
+                                <th>Datetime</th>
+                                <th style="width: 100%">Log</th>
+                            </tr>`
+                        ai_logs.forEach(record => {
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td>${record[0]}</td>
+                                <td>${record[1]}</td>`
+                            tbody.appendChild(row);
+                        });
+                        const buttons_div = document.createElement("div");
+                        popupContent.appendChild(buttons_div);
+                        const close_button = document.createElement("button");
+                        buttons_div.appendChild(close_button);
+                        close_button.innerText = "Close";
+                        close_button.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("ai_logs"))});
+                        document.body.appendChild(popup);
+                    }
+                });
+                input_el.parentElement.appendChild(AI_logs_button);
             });
         }
 
         async function editEntryInPFSTable(tr_element) {
-            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost_reduction, is_active;
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, is_active;
             tr_element.childNodes.forEach(td_element => {
                 if (td_element.nodeType !== Node.TEXT_NODE) {
                     if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
@@ -685,7 +722,7 @@
                     else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "estimated_qaly_impact") { estimated_qaly_impact = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "evidence") { evidence = td_element.innerText; }
-                    else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "annual_cost") { annual_cost = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.innerText === "Yes"; }
                 }
             })
@@ -757,9 +794,9 @@
                 </td>
             </tr>
             <tr>
-                <td>annual_cost_reduction</td>
+                <td>annual_cost</td>
                 <td>
-                    <input type="text" value="${annual_cost_reduction}" style="width: 100%; height: 30px;" id="edit_pfs_popup_annual_cost_reduction" placeholder="annual_cost_reduction">
+                    <input type="text" value="${annual_cost}" style="width: 100%; height: 30px;" id="edit_pfs_popup_annual_cost" placeholder="annual_cost">
                 </td>
             </tr>
             <tr>
@@ -786,27 +823,64 @@
                 const global_patient_population = document.getElementById("edit_pfs_popup_global_patient_population").value;
                 const cost_difference = document.getElementById("edit_pfs_popup_estimated_qaly_impact").value;
                 const evidence = document.getElementById("edit_pfs_popup_evidence").value;
-                const annual_cost_reduction = document.getElementById("edit_pfs_popup_annual_cost_reduction").value;
+                const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value;
                 const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
-                await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
+                await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost, is_active);
                 document.body.removeChild(document.getElementById("edit_pfs_popup"));
             });
             document.body.appendChild(popup);
 
-            ["global_patient_population", "estimated_qaly_impact", "annual_cost_reduction"].forEach(field_name => {
+            ["global_patient_population", "estimated_qaly_impact", "annual_cost"].forEach(field_name => {
                 const input_el = document.getElementById("edit_pfs_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
                 ask_AI_button.addEventListener("click", async function(event) {
-                    const ai_resp = await askAI({
-                        field_name: field_name,
-                        disease_id: disease_id,
-                        reference_drug_id: reference_drug_id,
-                        replacement_drug_id: replacement_drug_id
-                    });
+                    const ai_resp = await askAI(disease_id, reference_drug_id, replacement_drug_id, field_name);
                     if (ai_resp) {input_el.value = ai_resp;}
                 });
                 input_el.parentElement.appendChild(ask_AI_button);
+                const AI_logs_button = document.createElement("button");
+                AI_logs_button.innerText = "AI logs";
+                AI_logs_button.addEventListener("click", async function(event) {
+                    const ai_logs = await getAILogs(disease_id, reference_drug_id, replacement_drug_id, field_name);
+                    if (ai_logs) {
+                        const popup = document.createElement("div");
+                        popup.setAttribute("id", "ai_logs");
+                        popup.classList.add("b-popup");
+                        const popupContent = document.createElement("div");
+                        popupContent.classList.add("b-popup-content");
+                        popup.appendChild(popupContent);
+                        const table_div = document.createElement("div");
+                        table_div.classList.add("b-popup-content-table-div");
+                        popupContent.appendChild(table_div);
+                        const table = document.createElement("table");
+                        table_div.appendChild(table);
+                        const thead = document.createElement("thead");
+                        table.appendChild(thead);
+                        const tbody = document.createElement("tbody");
+                        table.appendChild(tbody);
+                        thead.innerHTML = `
+                            <tr>
+                                <th>Datetime</th>
+                                <th style="width: 100%">Log</th>
+                            </tr>`
+                        ai_logs.forEach(record => {
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td>${record[0]}</td>
+                                <td>${record[1]}</td>`
+                            tbody.appendChild(row);
+                        });
+                        const buttons_div = document.createElement("div");
+                        popupContent.appendChild(buttons_div);
+                        const close_button = document.createElement("button");
+                        buttons_div.appendChild(close_button);
+                        close_button.innerText = "Close";
+                        close_button.addEventListener("click", function(event) {document.body.removeChild(document.getElementById("ai_logs"))});
+                        document.body.appendChild(popup);
+                    }
+                });
+                input_el.parentElement.appendChild(AI_logs_button);
             });
         }
 
@@ -930,7 +1004,7 @@
             }
         }
 
-        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost_reduction, is_active) {
+        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, is_active) {
             showLoader();
             try {
                 const response = await fetch(`/table_pfs`, {
@@ -950,7 +1024,7 @@
                         global_patient_population: global_patient_population,
                         estimated_qaly_impact: estimated_qaly_impact,
                         evidence: evidence,
-                        annual_cost_reduction: annual_cost_reduction,
+                        annual_cost: annual_cost,
                         is_active: is_active
                     })
                 });
@@ -972,17 +1046,16 @@
             }
         }
 
-        async function askAI(request) {
+        async function askAI(disease_id, reference_drug_id, replacement_drug_id, field_name) {
             showLoader();
             try {
-                const response = await fetch(`/ask_ai`, {
-                    method: 'POST',
+                const response = await fetch(`/ask_ai/${disease_id}/${reference_drug_id}/${replacement_drug_id}/${field_name}`, {
+                    method: 'GET',
                     credentials: 'include', // ✅ Automatically send cookies
                     headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(request)
+                    }
                 });
 
                 if (response.status === 401 || response.status === 403) {
@@ -998,6 +1071,42 @@
                 const data = await response.json();
                 if (data["value"]) {
                     return data["value"];
+                } else {
+                    alert("Error: incorrect or empty response");
+                    return;
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function getAILogs(disease_id, reference_drug_id, replacement_drug_id, field_name) {
+            showLoader();
+            try {
+                const response = await fetch(`/ai_logs/${disease_id}/${reference_drug_id}/${replacement_drug_id}/${field_name}`, {
+                    method: 'GET',
+                    credentials: 'include', // ✅ Automatically send cookies
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert("Unauthorized. Redirecting to login.");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!response.ok) {
+                    alert("Error: status: " + response.status + ", response: " + await response.text());
+                    return;
+                }
+
+                const data = await response.json();
+                if (data["logs"]) {
+                    return data["logs"];
                 } else {
                     alert("Error: incorrect or empty response");
                     return;

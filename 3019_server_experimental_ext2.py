@@ -79,9 +79,19 @@ management_conn.execute("""
         global_patient_population TEXT NOT NULL DEFAULT 'N/A',
         estimated_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
         evidence TEXT NOT NULL,
-        annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
+        annual_cost TEXT NOT NULL DEFAULT 'N/A',
         is_active BOOLEAN NOT NULL DEFAULT 0,
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
+    )
+""")
+management_conn.execute("""
+    CREATE TABLE IF NOT EXISTS ai_logs (
+        disease_id TEXT NOT NULL,
+        reference_drug_id TEXT NOT NULL,
+        replacement_drug_id TEXT NOT NULL,
+        field_name TEXT NOT NULL,
+        datetime TEXT NOT NULL,
+        log TEXT
     )
 """)
 management_conn.close()
@@ -440,7 +450,7 @@ class PFSEntryFullModel(BaseModel):
     global_patient_population: Optional[str] = None
     estimated_qaly_impact: Optional[str] = None
     evidence: str
-    annual_cost_reduction: Optional[str] = None
+    annual_cost: Optional[str] = None
     is_active: Optional[bool] = None
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
@@ -669,7 +679,7 @@ class PFSEntryUpdateModel(BaseModel):
     global_patient_population: str
     estimated_qaly_impact: str
     evidence: str
-    annual_cost_reduction: str
+    annual_cost: str
     is_active: bool
 
 @app.post("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
@@ -721,7 +731,7 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             global_patient_population = ?,
             estimated_qaly_impact = ?,
             evidence = ?,
-            annual_cost_reduction = ?,
+            annual_cost = ?,
             is_active = ?
         WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
         [
@@ -731,7 +741,7 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             entry.global_patient_population,
             entry.estimated_qaly_impact,
             entry.evidence,
-            entry.annual_cost_reduction,
+            entry.annual_cost,
             entry.is_active,
 
             entry.disease_id,
@@ -743,36 +753,73 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
     return {"success": True, "message": "entry was added successfully"}
 
 
-class AskAIModel(BaseModel):
-    disease_id: str
-    reference_drug_id: str
-    replacement_drug_id: str
-    field_name: str
-
-
-@app.post("/ask_ai", response_model=Dict, dependencies=[Depends(get_current_user)])
-def ask_ai(req: AskAIModel):
+@app.get("/ask_ai/{disease_id}/{reference_drug_id}/{replacement_drug_id}/{field_name}", response_model=Dict, dependencies=[Depends(get_current_user)])
+def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, field_name: str):
     try:
         bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
     except duckdb.ConnectionException:
         raise HTTPException(status_code=500, detail="Server busy")
-    disease_name = bio_data_conn.execute('SELECT name FROM tbl_diseases WHERE id = ?', [req.disease_id]).fetchone()[0]
-    reference_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [req.reference_drug_id]).fetchone()[0]
-    replacement_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [req.replacement_drug_id]).fetchone()[0]
+    disease_name = bio_data_conn.execute('SELECT name FROM tbl_diseases WHERE id = ?', [disease_id]).fetchone()[0]
+    reference_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [reference_drug_id]).fetchone()[0]
+    replacement_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [replacement_drug_id]).fetchone()[0]
     bio_data_conn.close()
-
-    field_name = req.field_name
 
     if field_name == 'global_patient_population':
         value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+        ai_log = 'test_log'
     elif field_name == 'cost_difference':
         value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+        ai_log = 'test_log'
     elif field_name == 'estimated_qaly_impact':
         value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
-    elif field_name == 'annual_cost_reduction':
+        ai_log = 'test_log'
+    elif field_name == 'annual_cost':
         value = f'{field_name}, {disease_name}, {reference_drug_name}, {replacement_drug_name}' #TODO
+        ai_log = 'test_log'
+
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    try:
+        management_conn.execute("""
+            INSERT INTO ai_logs (
+                disease_id,
+                reference_drug_id,
+                replacement_drug_id,
+                field_name,
+                datetime,
+                log
+            )
+            VALUES (?, ?, ?, ?, ?, ?)""", 
+            [disease_id,
+            reference_drug_id,
+            replacement_drug_id,
+            field_name,
+            dt.datetime.now().isoformat(sep=' ', timespec='seconds'),
+            ai_log])
+    except duckdb.ConstraintException:
+        raise HTTPException(status_code=400, detail="Already exists")
+    finally:
+        management_conn.close()
 
     return {"success": True, "value": value}
+
+
+@app.get("/ai_logs/{disease_id}/{reference_drug_id}/{replacement_drug_id}/{field_name}", response_model=Dict, dependencies=[Depends(get_current_user)])
+def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, field_name: str):
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    rows = management_conn.execute("""
+        SELECT datetime, log
+        FROM ai_logs
+        WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ? AND field_name = ?
+        ORDER BY datetime DESC""", 
+        [disease_id, reference_drug_id, replacement_drug_id, field_name]).fetchall()
+    management_conn.close()
+    return {"success": True, "logs": rows}
 
 
 if __name__ == "__main__":
