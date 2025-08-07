@@ -690,7 +690,10 @@
                 ask_AI_button.innerText = "Ask AI";
                 ask_AI_button.addEventListener("click", async function(event) {
                     const ai_resp = await askAI(disease_id, reference_drug_id, replacement_drug_id, field_name);
-                    if (ai_resp) {input_el.value = ai_resp;}
+                    if (ai_resp) {
+                        input_el.value = ai_resp;
+                        input_el.dispatchEvent(new Event('input'));
+                    }
                 });
                 input_el.parentElement.appendChild(ask_AI_button);
                 const AI_logs_button = document.createElement("button");
@@ -879,7 +882,10 @@
                 ask_AI_button.innerText = "Ask AI";
                 ask_AI_button.addEventListener("click", async function(event) {
                     const ai_resp = await askAI(disease_id, reference_drug_id, replacement_drug_id, field_name);
-                    if (ai_resp) {input_el.value = ai_resp;}
+                    if (ai_resp) {
+                        input_el.value = ai_resp;
+                        input_el.dispatchEvent(new Event('input'));
+                    }
                 });
                 input_el.parentElement.appendChild(ask_AI_button);
                 const AI_logs_button = document.createElement("button");
