@@ -22,7 +22,7 @@ def send_request(prompt: str) -> str:
     return response_text
 
 # get the average value from the response (dictionary) which might contain other info as well
-def parse_response(response_text: str) -> dict:
+def parse_response(response_text: str) -> float|None:
     # Extract JSON content between ```json and ``` markers
     try:
         if "```json" in response_text:
@@ -47,7 +47,7 @@ def parse_response(response_text: str) -> dict:
     except Exception as e:
         print(f"Error parsing response: {e}")
         print(f"Original response: {response_text}")
-        raise
+        return None
 
 def get_global_patient_population(disease_name, reference_drug_name, replacement_drug_name):
     prompt = f"""Search for the patient population in the United States of {disease_name} 

@@ -688,16 +688,20 @@
                 const input_el = document.getElementById("edit_ivpe_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
+                const AI_logs_button = document.createElement("button");
+                AI_logs_button.innerText = "AI logs";
+
                 ask_AI_button.addEventListener("click", async function(event) {
                     const ai_resp = await askAI(disease_id, reference_drug_id, replacement_drug_id, field_name);
                     if (ai_resp) {
                         input_el.value = ai_resp;
                         input_el.dispatchEvent(new Event('input'));
+                    } else if (ai_resp === null) {
+                        alert('Parsing error');
+                        AI_logs_button.dispatchEvent(new Event('click'));
                     }
                 });
-                input_el.parentElement.appendChild(ask_AI_button);
-                const AI_logs_button = document.createElement("button");
-                AI_logs_button.innerText = "AI logs";
+
                 AI_logs_button.addEventListener("click", async function(event) {
                     const ai_logs = await getAILogs(disease_id, reference_drug_id, replacement_drug_id, field_name);
                     if (ai_logs) {
@@ -737,6 +741,8 @@
                         document.body.appendChild(popup);
                     }
                 });
+
+                input_el.parentElement.appendChild(ask_AI_button);
                 input_el.parentElement.appendChild(AI_logs_button);
 
                 input_el.addEventListener('input', function() {
@@ -880,16 +886,20 @@
                 const input_el = document.getElementById("edit_pfs_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
+                const AI_logs_button = document.createElement("button");
+                AI_logs_button.innerText = "AI logs";
+
                 ask_AI_button.addEventListener("click", async function(event) {
                     const ai_resp = await askAI(disease_id, reference_drug_id, replacement_drug_id, field_name);
                     if (ai_resp) {
                         input_el.value = ai_resp;
                         input_el.dispatchEvent(new Event('input'));
+                    } else if (ai_resp === null) {
+                        alert('Parsing error');
+                        AI_logs_button.dispatchEvent(new Event('click'));
                     }
                 });
-                input_el.parentElement.appendChild(ask_AI_button);
-                const AI_logs_button = document.createElement("button");
-                AI_logs_button.innerText = "AI logs";
+
                 AI_logs_button.addEventListener("click", async function(event) {
                     const ai_logs = await getAILogs(disease_id, reference_drug_id, replacement_drug_id, field_name);
                     if (ai_logs) {
@@ -929,6 +939,8 @@
                         document.body.appendChild(popup);
                     }
                 });
+
+                input_el.parentElement.appendChild(ask_AI_button);
                 input_el.parentElement.appendChild(AI_logs_button);
 
                 input_el.addEventListener('input', function() {
@@ -1124,12 +1136,7 @@
                 }
 
                 const data = await response.json();
-                if (data["value"]) {
-                    return data["value"];
-                } else {
-                    alert("Error: incorrect or empty response");
-                    return;
-                }
+                return data["value"];
             } catch (error) {
                 console.error("Error fetching data:", error);
             } finally {

@@ -800,7 +800,7 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
     finally:
         management_conn.close()
 
-    return {"success": True, "value": value}
+    return {"success": bool(value), "value": value}
 
 
 @app.get("/ai_logs/{disease_id}/{reference_drug_id}/{replacement_drug_id}/{field_name}", response_model=Dict, dependencies=[Depends(get_current_user)])
