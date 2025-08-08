@@ -654,10 +654,10 @@
                 const evidence = document.getElementById("edit_ivpe_popup_evidence").value;
                 const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
-                if (!isStringNumeric(global_patient_population)) {
-                    alert('The value of "global_patient_population" must be numeric.')
-                } else if (!isStringNumeric(cost_difference)) {
-                    alert('The value of "cost_difference" must be numeric.')
+                if (!isStringNumeric(global_patient_population) && global_patient_population !== "N/A") {
+                    alert('The value of "global_patient_population" must be numeric or "N/A".')
+                } else if (!isStringNumeric(cost_difference) && global_patient_population !== "N/A") {
+                    alert('The value of "cost_difference" must be numeric or "N/A".')
                 } else {
                     await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
                     document.body.removeChild(document.getElementById("edit_ivpe_popup"));
@@ -869,12 +869,12 @@
                 const evidence = document.getElementById("edit_pfs_popup_evidence").value;
                 const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value;
                 const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
-                if (!isStringNumeric(global_patient_population)) {
-                    alert('The value of "global_patient_population" must be numeric.')
-                } else if (!isStringNumeric(estimated_qaly_impact)) {
-                    alert('The value of "estimated_qaly_impact" must be numeric.')
-                } else if (!isStringNumeric(annual_cost)) {
-                    alert('The value of "annual_cost" must be numeric.')
+                if (!isStringNumeric(global_patient_population) && global_patient_population !== "N/A") {
+                    alert('The value of "global_patient_population" must be numeric or "N/A".')
+                } else if (!isStringNumeric(estimated_qaly_impact) && estimated_qaly_impact !== "N/A") {
+                    alert('The value of "estimated_qaly_impact" must be numeric or "N/A".')
+                } else if (!isStringNumeric(annual_cost) && annual_cost !== "N/A") {
+                    alert('The value of "annual_cost" must be numeric or "N/A".')
                 } else {
                     await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, is_active);
                     document.body.removeChild(document.getElementById("edit_pfs_popup"));
