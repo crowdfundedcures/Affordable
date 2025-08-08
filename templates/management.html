@@ -654,9 +654,9 @@
                 const evidence = document.getElementById("edit_ivpe_popup_evidence").value;
                 const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
-                if (!isStringNumeric(global_patient_population) && global_patient_population !== "N/A") {
+                if (!isStringNumeric(global_patient_population.replaceAll(" ", "")) && global_patient_population !== "N/A") {
                     alert('The value of "global_patient_population" must be numeric or "N/A".')
-                } else if (!isStringNumeric(cost_difference) && global_patient_population !== "N/A") {
+                } else if (!isStringNumeric(cost_difference.replaceAll(" ", "")) && global_patient_population !== "N/A") {
                     alert('The value of "cost_difference" must be numeric or "N/A".')
                 } else {
                     await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
@@ -666,22 +666,26 @@
             document.body.appendChild(popup);
 
             document.getElementById("edit_ivpe_popup_global_patient_population").addEventListener('input', function() {
-                const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value;
-                const global_patient_population = this.value;
+                const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value.replaceAll(" ", "");
+                const global_patient_population = this.value.replaceAll(" ", "");
+                const annual_cost_reduction_el = document.getElementById("edit_ivpe_popup_annual_cost_reduction");
                 if (isStringNumeric(global_patient_population) && isStringNumeric(cost_difference)) {
-                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = Number(global_patient_population) * Number(cost_difference);
+                    annual_cost_reduction_el.value = Number(global_patient_population) * Number(cost_difference);
                 } else {
-                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = "N/A";
+                    annual_cost_reduction_el.value = "N/A";
                 }
+                annual_cost_reduction_el.dispatchEvent(new Event('input'));
             });
             document.getElementById("edit_ivpe_popup_cost_difference").addEventListener('input', function() {
-                const cost_difference = this.value;
-                const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value;
+                const cost_difference = this.value.replaceAll(" ", "");
+                const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value.replaceAll(" ", "");
+                const annual_cost_reduction_el = document.getElementById("edit_ivpe_popup_annual_cost_reduction");
                 if (isStringNumeric(cost_difference) && isStringNumeric(global_patient_population)) {
-                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = Number(global_patient_population) * Number(cost_difference);
+                    annual_cost_reduction_el.value = Number(global_patient_population) * Number(cost_difference);
                 } else {
-                    document.getElementById("edit_ivpe_popup_annual_cost_reduction").value = "N/A";
+                    annual_cost_reduction_el.value = "N/A";
                 }
+                annual_cost_reduction_el.dispatchEvent(new Event('input'));
             });
 
             ["global_patient_population", "cost_difference"].forEach(field_name => {
@@ -746,11 +750,42 @@
                 input_el.parentElement.appendChild(AI_logs_button);
 
                 input_el.addEventListener('input', function() {
-                    if (!isStringNumeric(this.value)) { this.style.color = 'red' }
-                    else { this.style.color = null }
+                    let value = this.value.replaceAll(" ", "");
+                    if (!isStringNumeric(value)) { this.style.color = 'red' }
+                    else {
+                        this.style.color = null
+                        value = value.split(".")
+                        let new_value = "";
+                        for (let i = 0; i < value[0].length; i++) {
+                            const ch = value[0][value[0].length-1-i];
+                            if (i % 3 === 0 && i !== 0) { new_value = " " + new_value}
+                            new_value = ch + new_value;
+                        }
+                        if (value.length > 1) { new_value = new_value + "." + value[1]}
+                        this.value = new_value;
+                    }
                 });
                 input_el.dispatchEvent(new Event('input'));
             });
+
+            const annual_cost_reduction_el = document.getElementById("edit_ivpe_popup_annual_cost_reduction");
+            annual_cost_reduction_el.addEventListener('input', function() {
+                let value = this.value.replaceAll(" ", "");
+                if (!isStringNumeric(value)) { this.style.color = 'red' }
+                else {
+                    this.style.color = null
+                    value = value.split(".")
+                    let new_value = "";
+                    for (let i = 0; i < value[0].length; i++) {
+                        const ch = value[0][value[0].length-1-i];
+                        if (i % 3 === 0 && i !== 0) { new_value = " " + new_value}
+                        new_value = ch + new_value;
+                    }
+                    if (value.length > 1) { new_value = new_value + "." + value[1]}
+                    this.value = new_value;
+                }
+            });
+            annual_cost_reduction_el.dispatchEvent(new Event('input'));
         }
 
         async function editEntryInPFSTable(tr_element) {
@@ -869,11 +904,11 @@
                 const evidence = document.getElementById("edit_pfs_popup_evidence").value;
                 const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value;
                 const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
-                if (!isStringNumeric(global_patient_population) && global_patient_population !== "N/A") {
+                if (!isStringNumeric(global_patient_population.replaceAll(" ", "")) && global_patient_population !== "N/A") {
                     alert('The value of "global_patient_population" must be numeric or "N/A".')
-                } else if (!isStringNumeric(estimated_qaly_impact) && estimated_qaly_impact !== "N/A") {
+                } else if (!isStringNumeric(estimated_qaly_impact.replaceAll(" ", "")) && estimated_qaly_impact !== "N/A") {
                     alert('The value of "estimated_qaly_impact" must be numeric or "N/A".')
-                } else if (!isStringNumeric(annual_cost) && annual_cost !== "N/A") {
+                } else if (!isStringNumeric(annual_cost.replaceAll(" ", "")) && annual_cost !== "N/A") {
                     alert('The value of "annual_cost" must be numeric or "N/A".')
                 } else {
                     await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, is_active);
@@ -944,8 +979,20 @@
                 input_el.parentElement.appendChild(AI_logs_button);
 
                 input_el.addEventListener('input', function() {
-                    if (!isStringNumeric(this.value)) { this.style.color = 'red' }
-                    else { this.style.color = null }
+                    let value = this.value.replaceAll(" ", "");
+                    if (!isStringNumeric(value)) { this.style.color = 'red' }
+                    else {
+                        this.style.color = null
+                        value = value.split(".")
+                        let new_value = "";
+                        for (let i = 0; i < value[0].length; i++) {
+                            const ch = value[0][value[0].length-1-i];
+                            if (i % 3 === 0 && i !== 0) { new_value = " " + new_value}
+                            new_value = ch + new_value;
+                        }
+                        if (value.length > 1) { new_value = new_value + "." + value[1]}
+                        this.value = new_value;
+                    }
                 });
                 input_el.dispatchEvent(new Event('input'));
             });
