@@ -50,3 +50,27 @@
 | 4.00  | Unknown status              |                  |                  |                  |        |
 | 4.00  | Withdrawn                   |                  |                  |                  |        |
 | 4.00  | N/A                         |                  |                  |                  |        |
+
+
+
+### Sort order:
+
+1. isApproved OR isUrlAvailable
+2. Similarity
+3. isApproved
+4. isUrlAvailable
+5. phase
+6. status
+
+When sorting by status, the following priority is used:
+'Completed': 5,
+'Active, not recruiting': 4,
+'Enrolling by invitation': 3,
+'Recruiting': 2,
+'Not yet recruiting': 1,
+'Suspended': 0,
+'Terminated': 0,
+'Unknown status': 0,
+'Withdrawn': 0,
+'N/A': 0
+
