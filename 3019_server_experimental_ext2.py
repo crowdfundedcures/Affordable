@@ -81,6 +81,8 @@ management_conn.execute("""
         estimated_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
         evidence TEXT NOT NULL,
         annual_cost TEXT NOT NULL DEFAULT 'N/A',
+        cost_per_qaly TEXT NOT NULL DEFAULT 'N/A',
+        total_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
         is_active BOOLEAN NOT NULL DEFAULT 0,
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
@@ -452,6 +454,8 @@ class PFSEntryFullModel(BaseModel):
     estimated_qaly_impact: Optional[str] = None
     evidence: str
     annual_cost: Optional[str] = None
+    cost_per_qaly: Optional[str] = None
+    total_qaly_impact: Optional[str] = None
     is_active: Optional[bool] = None
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
@@ -681,6 +685,8 @@ class PFSEntryUpdateModel(BaseModel):
     estimated_qaly_impact: str
     evidence: str
     annual_cost: str
+    cost_per_qaly: str
+    total_qaly_impact: str
     is_active: bool
 
 @app.post("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
@@ -733,6 +739,8 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             estimated_qaly_impact = ?,
             evidence = ?,
             annual_cost = ?,
+            cost_per_qaly = ?,
+            total_qaly_impact = ?,
             is_active = ?
         WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
         [
@@ -743,6 +751,8 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             entry.estimated_qaly_impact,
             entry.evidence,
             entry.annual_cost,
+            entry.cost_per_qaly,
+            entry.total_qaly_impact,
             entry.is_active,
 
             entry.disease_id,
