@@ -96,6 +96,7 @@
                         <th>cost_per_qaly</th>
                         <th>total_qaly_impact</th>
                         <th>rank</th>
+                        <th>approval_likelihood</th>
                         <th>links</th>
                         <th>is_active</th>
                     </tr>
@@ -517,6 +518,7 @@
                         <td data-column="cost_per_qaly">${record.cost_per_qaly}</td>
                         <td data-column="total_qaly_impact">${record.total_qaly_impact}</td>
                         <td data-column="rank">${record.rank}</td>
+                        <td data-column="approval_likelihood">${record.approval_likelihood}</td>
                         <td>
                             <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
                                 <img src="/static/eye.svg" alt="Show">
@@ -795,7 +797,7 @@
         }
 
         async function editEntryInPFSTable(tr_element) {
-            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, is_active;
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active;
             tr_element.childNodes.forEach(td_element => {
                 if (td_element.nodeType !== Node.TEXT_NODE) {
                     if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
@@ -810,6 +812,7 @@
                     else if (td_element.getAttribute("data-column") === "annual_cost") { annual_cost = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "cost_per_qaly") { cost_per_qaly = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "total_qaly_impact") { total_qaly_impact = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "approval_likelihood") { approval_likelihood = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.innerText === "Yes"; }
                 }
             })
@@ -899,6 +902,12 @@
                 </td>
             </tr>
             <tr>
+                <td>approval_likelihood</td>
+                <td>
+                    <input type="text" value="${approval_likelihood}" style="width: 100%; height: 30px;" id="edit_pfs_popup_approval_likelihood" placeholder="approval_likelihood">
+                </td>
+            </tr>
+            <tr>
                 <td>is_active</td>
                 <td>
                     ${is_active_checkbox_el}
@@ -925,6 +934,7 @@
                 const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value;
                 const cost_per_qaly = document.getElementById("edit_pfs_popup_cost_per_qaly").value;
                 const total_qaly_impact = document.getElementById("edit_pfs_popup_total_qaly_impact").value;
+                const approval_likelihood = document.getElementById("edit_pfs_popup_approval_likelihood").value;
                 const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
                 if (!isStringNumeric(global_patient_population.replaceAll(" ", "")) && global_patient_population !== "N/A") {
                     alert('The value of "global_patient_population" must be numeric or "N/A".')
@@ -932,8 +942,10 @@
                     alert('The value of "estimated_qaly_impact" must be numeric or "N/A".')
                 } else if (!isStringNumeric(annual_cost.replaceAll(" ", "")) && annual_cost !== "N/A") {
                     alert('The value of "annual_cost" must be numeric or "N/A".')
+                } else if (!isStringNumeric(approval_likelihood.replaceAll(" ", "")) && approval_likelihood !== "N/A") {
+                    alert('The value of "approval_likelihood" must be numeric or "N/A".')
                 } else {
-                    await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, is_active);
+                    await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active);
                     document.body.removeChild(document.getElementById("edit_pfs_popup"));
                 }
             });
@@ -981,7 +993,7 @@
                 total_qaly_impact_el.dispatchEvent(new Event('input'));
             });
 
-            ["global_patient_population", "estimated_qaly_impact", "annual_cost"].forEach(field_name => {
+            ["global_patient_population", "estimated_qaly_impact", "annual_cost", "approval_likelihood"].forEach(field_name => {
                 const input_el = document.getElementById("edit_pfs_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
@@ -1220,7 +1232,7 @@
             }
         }
 
-        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, is_active) {
+        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active) {
             showLoader();
             try {
                 const response = await fetch(`/table_pfs`, {
@@ -1243,6 +1255,7 @@
                         annual_cost: annual_cost,
                         cost_per_qaly: cost_per_qaly,
                         total_qaly_impact: total_qaly_impact,
+                        approval_likelihood: approval_likelihood,
                         is_active: is_active
                     })
                 });

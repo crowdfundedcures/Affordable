@@ -1,5 +1,6 @@
 import os
 import json
+
 from openai import OpenAI
 
 
@@ -49,7 +50,7 @@ def parse_response(response_text: str) -> float|None:
         print(f"Original response: {response_text}")
         return None
 
-def get_global_patient_population(disease_name, reference_drug_name, replacement_drug_name):
+def get_global_patient_population(disease_name: str, reference_drug_name: str, replacement_drug_name: str):
     prompt = f"""Search for the patient population in the United States of {disease_name} 
                  and provide the answer as the minimum, maximum, and average patient population in json format
                  as a dictionary with the following structure: """ + \
@@ -60,7 +61,7 @@ def get_global_patient_population(disease_name, reference_drug_name, replacement
     value = parse_response(response_text)
     return value, response_text
 
-def get_cost_difference(disease_name, reference_drug_name, replacement_drug_name):
+def get_cost_difference(disease_name: str, reference_drug_name: str, replacement_drug_name: str):
     prompt = f"""Search for the costs of {reference_drug_name} and {replacement_drug_name} 
                  per patient per year in the US in US dollars and provide the cost difference
                  (cost of {reference_drug_name} - cost of {replacement_drug_name}) in US dollars
@@ -74,7 +75,7 @@ def get_cost_difference(disease_name, reference_drug_name, replacement_drug_name
     return value, response_text
 
 
-def get_estimated_qaly_impact(disease_name, reference_drug_name, replacement_drug_name):
+def get_estimated_qaly_impact(disease_name: str, reference_drug_name: str, replacement_drug_name: str):
     prompt = f"""Search for estimated QALY impact of treating the {disease_name} with {reference_drug_name} 
                  for the US population and provide the answer as the minimum, maximum, and average QALY impact in json format
                  as a dictionary with the following structure: """ + \
@@ -86,13 +87,20 @@ def get_estimated_qaly_impact(disease_name, reference_drug_name, replacement_dru
     return value, response
 
 
-def get_annual_cost(disease_name, reference_drug_name, replacement_drug_name):
+def get_annual_cost(disease_name: str, reference_drug_name: str, replacement_drug_name: str):
     prompt = f"""Search for annual cost of a drug {reference_drug_name} per patient per year in the US 
                  in US dollars and provide the answer as the minimum, maximum, and average annual cost in json format
                  as a dictionary with the following structure: """ + \
                  """```json {"minimum": "0", "maximum": "0", "average": "0"}```""" + \
                  """where "0" stands for the minimum, maximum, and average annual cost in US dollars.
                  Make sure to provide the answer in the specified json format; do not provide ranges within individual values.""" # TODO
+    response = send_request(prompt)
+    value = parse_response(response)
+    return value, response
+
+
+def get_approval_likelihood(disease_name: str, reference_drug_name: str, replacement_drug_name: str, refs: set[str]):
+    prompt = f""" """ # TODO
     response = send_request(prompt)
     value = parse_response(response)
     return value, response

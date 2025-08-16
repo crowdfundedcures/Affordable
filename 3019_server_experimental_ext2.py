@@ -85,6 +85,7 @@ management_conn.execute("""
         cost_per_qaly TEXT NOT NULL DEFAULT 'N/A',
         total_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
         rank TEXT NOT NULL DEFAULT 'N/A',
+        approval_likelihood TEXT NOT NULL DEFAULT 'N/A',
         is_active BOOLEAN NOT NULL DEFAULT 0,
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
@@ -459,6 +460,7 @@ class PFSEntryFullModel(BaseModel):
     cost_per_qaly: Optional[str] = None
     total_qaly_impact: Optional[str] = None
     rank: Optional[str] = None
+    approval_likelihood: Optional[str] = None
     is_active: Optional[bool] = None
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
@@ -662,7 +664,7 @@ def add_entry_to_table_pfs(entry: PFSEntryFullModel):
 
 
 @app.delete("/table_ivpe/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
-def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+def delete_entry_from_table_ivpe(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
     try:
         management_conn = duckdb.connect(management_db_path)
     except duckdb.ConnectionException:
@@ -686,7 +688,7 @@ def update_entry_in_table_ivpe(disease_id: str, reference_drug_id: str, replacem
 
 
 @app.delete("/table_pfs/{disease_id}/{reference_drug_id}/{replacement_drug_id}", response_model=Dict, dependencies=[Depends(get_current_user)])
-def update_entry_in_table_pfs(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
+def delete_entry_from_table_pfs(disease_id: str, reference_drug_id: str, replacement_drug_id: str):
     try:
         management_conn = duckdb.connect(management_db_path)
     except duckdb.ConnectionException:
@@ -736,6 +738,7 @@ class PFSEntryUpdateModel(BaseModel):
     annual_cost: str
     cost_per_qaly: str
     total_qaly_impact: str
+    approval_likelihood: str
     is_active: bool
 
 @app.post("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
@@ -790,6 +793,7 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             annual_cost = ?,
             cost_per_qaly = ?,
             total_qaly_impact = ?,
+            approval_likelihood = ?,
             is_active = ?
         WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
         [
@@ -802,6 +806,7 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             entry.annual_cost,
             entry.cost_per_qaly,
             entry.total_qaly_impact,
+            entry.approval_likelihood,
             entry.is_active,
 
             entry.disease_id,
@@ -834,6 +839,11 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
         value, full_response = ai_lib.get_estimated_qaly_impact(disease_name, reference_drug_name, replacement_drug_name)
     elif field_name == 'annual_cost':
         value, full_response = ai_lib.get_annual_cost(disease_name, reference_drug_name, replacement_drug_name)
+    elif field_name == 'approval_likelihood':
+        refs = set()
+        for e in extract_evidence(disease_id, reference_drug_id, replacement_drug_id):
+            refs.update(e['refs'])
+        value, full_response = ai_lib.get_approval_likelihood(disease_name, reference_drug_name, replacement_drug_name, refs)
 
     try:
         management_conn = duckdb.connect(management_db_path)
