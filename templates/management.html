@@ -95,6 +95,7 @@
                         <th>annual_cost</th>
                         <th>cost_per_qaly</th>
                         <th>total_qaly_impact</th>
+                        <th>rank</th>
                         <th>links</th>
                         <th>is_active</th>
                     </tr>
@@ -515,6 +516,7 @@
                         <td data-column="annual_cost">${record.annual_cost}</td>
                         <td data-column="cost_per_qaly">${record.cost_per_qaly}</td>
                         <td data-column="total_qaly_impact">${record.total_qaly_impact}</td>
+                        <td data-column="rank">${record.rank}</td>
                         <td>
                             <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
                                 <img src="/static/eye.svg" alt="Show">

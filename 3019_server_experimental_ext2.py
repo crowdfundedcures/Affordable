@@ -15,7 +15,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-import ai_lib
+from lib_utils import ai_lib
+from lib_utils.project_ranking import get_ranks
 
 
 
@@ -83,6 +84,7 @@ management_conn.execute("""
         annual_cost TEXT NOT NULL DEFAULT 'N/A',
         cost_per_qaly TEXT NOT NULL DEFAULT 'N/A',
         total_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
+        rank TEXT NOT NULL DEFAULT 'N/A',
         is_active BOOLEAN NOT NULL DEFAULT 0,
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
@@ -456,6 +458,7 @@ class PFSEntryFullModel(BaseModel):
     annual_cost: Optional[str] = None
     cost_per_qaly: Optional[str] = None
     total_qaly_impact: Optional[str] = None
+    rank: Optional[str] = None
     is_active: Optional[bool] = None
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
@@ -549,6 +552,48 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
     return {"success": True, "message": "entry was added successfully"}
 
 
+def update_table_pfs_ranks():
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    rows = management_conn.execute('SELECT disease_id, reference_drug_id, replacement_drug_id, estimated_qaly_impact, annual_cost FROM pfs_table').fetchall()
+    management_conn.close()
+
+    projects = []
+    for row in rows:
+        id = tuple(row[:3]) # (disease_id, reference_drug_id, replacement_drug_id)
+        try:
+            qaly = float(row[3].replace(' ', ''))
+            cost = float(row[4].replace(' ', ''))
+        except:
+            continue # not numeric
+        if cost == 0:
+            continue
+        projects.append({'id': id, 'qaly': qaly, 'cost': cost})
+
+    ranks = get_ranks(projects)
+
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    management_conn.execute("BEGIN TRANSACTION")
+
+    for rank, (disease_id, reference_drug_id, replacement_drug_id) in ranks.items():
+        management_conn.execute("""
+            UPDATE pfs_table 
+            SET rank = ?
+            WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+            [
+                rank,
+                disease_id, reference_drug_id, replacement_drug_id
+            ])
+    management_conn.execute("COMMIT")
+    management_conn.close()
+
+
+
 @app.put("/table_pfs", response_model=Dict, dependencies=[Depends(get_current_user)])
 def add_entry_to_table_pfs(entry: PFSEntryFullModel):
     try:
@@ -611,6 +656,8 @@ def add_entry_to_table_pfs(entry: PFSEntryFullModel):
     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after close")
 
+    update_table_pfs_ranks()
+
     return {"success": True, "message": "entry was added successfully"}
 
 
@@ -658,6 +705,8 @@ def update_entry_in_table_pfs(disease_id: str, reference_drug_id: str, replaceme
             AND replacement_drug_id = ?""", 
             [disease_id, reference_drug_id, replacement_drug_id])
     management_conn.close()
+
+    update_table_pfs_ranks()
 
     return {"success": True, "message": "entry was deleted successfully"}
 
@@ -760,6 +809,8 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             entry.replacement_drug_id
         ])
     management_conn.close()
+
+    update_table_pfs_ranks()
 
     return {"success": True, "message": "entry was added successfully"}
 
