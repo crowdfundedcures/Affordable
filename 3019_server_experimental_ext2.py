@@ -843,7 +843,10 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
         refs = set()
         for e in extract_evidence(disease_id, reference_drug_id, replacement_drug_id):
             refs.update(e['refs'])
-        value, full_response = ai_lib.get_approval_likelihood(disease_name, reference_drug_name, replacement_drug_name, refs)
+        if refs:
+            value, full_response = ai_lib.get_approval_likelihood(disease_name, reference_drug_name, replacement_drug_name, refs)
+        else:
+            raise HTTPException(status_code=400, detail="The 'links' field is empty")
 
     try:
         management_conn = duckdb.connect(management_db_path)
