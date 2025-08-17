@@ -100,7 +100,13 @@ def get_annual_cost(disease_name: str, reference_drug_name: str, replacement_dru
 
 
 def get_approval_likelihood(disease_name: str, reference_drug_name: str, replacement_drug_name: str, refs: set[str]):
-    prompt = f""" """ # TODO
+    prompt = f"""Estimate approval likelihood of a drug {replacement_drug_name} for the {disease_name} in the US 
+                 based on the following references: {refs}
+                 and provide the answer as the average approval likelihood in json format
+                 as a dictionary with the following structure: """ + \
+                 """```json {"average": "0"}```""" + \
+                 """where "1" stands for the minimal approval likelihood and 10 for the maximum approval likelihood.
+                 Make sure to provide the answer in the specified json format; do not provide ranges within individual values.""" # TODO
     response = send_request(prompt)
     value = parse_response(response)
     return value, response
