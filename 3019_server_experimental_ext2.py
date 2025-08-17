@@ -65,6 +65,7 @@ management_conn.execute("""
         cost_difference TEXT NOT NULL DEFAULT 'N/A',
         evidence TEXT NOT NULL,
         annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
+        approval_likelihood TEXT NOT NULL DEFAULT 'N/A',
         is_active BOOLEAN NOT NULL DEFAULT 0,
         PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
     )
@@ -443,6 +444,7 @@ class IVPEEntryFullModel(BaseModel):
     cost_difference: Optional[str] = None
     evidence: str
     annual_cost_reduction: Optional[str] = None
+    approval_likelihood: Optional[str] = None
     is_active: Optional[bool] = None
 
 class PFSEntryFullModel(BaseModel):
@@ -723,6 +725,7 @@ class IVPEEntryUpdateModel(BaseModel):
     cost_difference: str
     evidence: str
     annual_cost_reduction: str
+    approval_likelihood: str
     is_active: bool
 
 class PFSEntryUpdateModel(BaseModel):
@@ -756,6 +759,7 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
             cost_difference = ?,
             evidence = ?,
             annual_cost_reduction = ?,
+            approval_likelihood = ?,
             is_active = ?
         WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
         [
@@ -766,6 +770,7 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
             entry.cost_difference,
             entry.evidence,
             entry.annual_cost_reduction,
+            entry.approval_likelihood,
             entry.is_active,
 
             entry.disease_id,

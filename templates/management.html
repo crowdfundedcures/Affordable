@@ -67,6 +67,7 @@
                         <th>cost_difference</th>
                         <th>evidence</th>
                         <th>annual_cost_reduction</th>
+                        <th>approval_likelihood</th>
                         <th>links</th>
                         <th>is_active</th>
                     </tr>
@@ -451,6 +452,7 @@
                         <td data-column="cost_difference">${record.cost_difference}</td>
                         <td data-column="evidence">${record.evidence}</td>
                         <td data-column="annual_cost_reduction">${record.annual_cost_reduction}</td>
+                        <td data-column="approval_likelihood">${record.approval_likelihood}</td>
                         <td>
                             <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
                                 <img src="/static/eye.svg" alt="Show">
@@ -547,7 +549,7 @@
         }
 
         async function editEntryInIVPETable(tr_element) {
-            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active;
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active;
             tr_element.childNodes.forEach(td_element => {
                 if (td_element.nodeType !== Node.TEXT_NODE) {
                     if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
@@ -560,6 +562,7 @@
                     else if (td_element.getAttribute("data-column") === "cost_difference") { cost_difference = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "evidence") { evidence = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "approval_likelihood") { approval_likelihood = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "is_active") { is_active = td_element.innerText === "Yes"; }
                 }
             })
@@ -637,6 +640,12 @@
                 </td>
             </tr>
             <tr>
+                <td>approval_likelihood</td>
+                <td>
+                    <input type="text" value="${approval_likelihood}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_approval_likelihood" placeholder="approval_likelihood">
+                </td>
+            </tr>
+            <tr>
                 <td>is_active</td>
                 <td>
                     ${is_active_checkbox_el}
@@ -661,13 +670,16 @@
                 const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value;
                 const evidence = document.getElementById("edit_ivpe_popup_evidence").value;
                 const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
+                const approval_likelihood = document.getElementById("edit_ivpe_popup_approval_likelihood").value;
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
                 if (!isStringNumeric(global_patient_population.replaceAll(" ", "")) && global_patient_population !== "N/A") {
                     alert('The value of "global_patient_population" must be numeric or "N/A".')
                 } else if (!isStringNumeric(cost_difference.replaceAll(" ", "")) && global_patient_population !== "N/A") {
                     alert('The value of "cost_difference" must be numeric or "N/A".')
+                } else if (!isStringNumeric(approval_likelihood.replaceAll(" ", "")) && approval_likelihood !== "N/A") {
+                    alert('The value of "approval_likelihood" must be numeric or "N/A".')
                 } else {
-                    await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active);
+                    await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active);
                     document.body.removeChild(document.getElementById("edit_ivpe_popup"));
                 }
             });
@@ -696,7 +708,7 @@
                 annual_cost_reduction_el.dispatchEvent(new Event('input'));
             });
 
-            ["global_patient_population", "cost_difference"].forEach(field_name => {
+            ["global_patient_population", "cost_difference", "approval_likelihood"].forEach(field_name => {
                 const input_el = document.getElementById("edit_ivpe_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
@@ -1190,7 +1202,7 @@
             }
         }
 
-        async function updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, is_active) {
+        async function updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active) {
             showLoader();
             try {
                 const response = await fetch(`/table_ivpe`, {
@@ -1211,6 +1223,7 @@
                         cost_difference: cost_difference,
                         evidence: evidence,
                         annual_cost_reduction: annual_cost_reduction,
+                        approval_likelihood: approval_likelihood,
                         is_active: is_active
                     })
                 });
