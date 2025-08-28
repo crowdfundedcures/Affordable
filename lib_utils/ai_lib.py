@@ -101,7 +101,8 @@ def get_annual_cost(disease_name: str, reference_drug_name: str, replacement_dru
 
 def get_approval_likelihood(disease_name: str, reference_drug_name: str, replacement_drug_name: str, refs: set[str]):
     prompt = f"""Estimate approval likelihood of a drug {replacement_drug_name} for the {disease_name} in the US 
-                 based on the following references: {refs}
+                 based on the following references: {refs} excluding any financial disincentive to fund trials
+                 due to lack of patent protection, patent enforceability, patent expiration or otherwise
                  and provide the answer as the average approval likelihood in json format
                  as a dictionary with the following structure: """ + \
                  """```json {"average": "0"}```""" + \
