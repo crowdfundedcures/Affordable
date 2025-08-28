@@ -44,7 +44,7 @@ The Affordable Opportunity
 Our mission is to support public good medicines that prioritize accessibility and cost savings over profit.
 The Affordable Algorithm calculates cost-saving potential for therapies that are candidates for IVPE and PFS funding by combining three key factors:
 
-1.	Global Patient Population: The estimated number of patients eligible for treatment worldwide.
+1.	Patient Population: The estimated number of patients eligible for treatment worldwide.
 2.	Cost Difference: The annual cost savings achieved by replacing the current standard of care with a low-cost therapy.
 3.	Evidence Probability: A score derived from a hierarchy of evidence, which quantifies the strength of clinical support for the therapy.
    
@@ -64,7 +64,7 @@ Clinical Guidelines / FDA Approval	0.9
 Post-Approval Systematic Reviews	1.0
 Bonus for Superiority Evidence (+10%)	+0.1
 How It Works:
-For example, a low-cost therapy supported by a Phase 2 RCT (0.6) with a demonstrated 10% improvement in outcomes (adding 0.1) would receive an evidence probability score of 0.7. This score is then combined with the global patient population and cost difference to determine the total cost-saving potential and assign an Affordable Algorithm Ranking 
+For example, a low-cost therapy supported by a Phase 2 RCT (0.6) with a demonstrated 10% improvement in outcomes (adding 0.1) would receive an evidence probability score of 0.7. This score is then combined with the patient population and cost difference to determine the total cost-saving potential and assign an Affordable Algorithm Ranking 
 By prioritizing therapies with robust evidence and scalable impact, the Affordable Algorithm ensures the most promising treatments are identified for validation and funding.
 Interventional Pharmacoeconomics (IVPE) Funding Validation of Affordable Therapies 
 What is IVPE?
@@ -76,14 +76,14 @@ Affordable Table for IVPE Validation
 The Affordable Algorithm ranks therapies eligible for IVPE funding validation based on the following criteria:
 •	Cost-Savings Potential: The difference between the current standard of care and the proposed alternative.
 •	Evidence Probability: Weighted scores based on the hierarchy of evidence (e.g., RCT emulation, Phase 2/3 trials, systematic reviews).
-•	Global Patient Population: The number of patients eligible for treatment globally.
+•	Patient Population: The number of patients eligible for treatment globally.
 Medical Disclaimer:
 The Affordable IVPE and Affordable PFS tables below is an example only and will be reviewed and validated by clinical advisors. This is not a statement that the treatments listed are proven to be effective for the conditions mentioned. Links to the relevant research data will be provided where applicable. These treatments should only be used under the oversight of a registered medical professional. Affordable does not make medical claims and encourages consulting healthcare professionals before considering any therapy.
  
 Affordable IVPE Table  
 
-This table highlights therapies with potential for significant healthcare cost reductions through Interventional Pharmacoeconomics (IVPE). By identifying cost-effective alternatives to high-cost treatments, the table ranks candidates suitable for IVPE funding by health insurers based on their ability to deliver savings while maintaining or improving clinical outcomes. Therapies are evaluated using evidence probability, global patient population, and cost difference, with rankings driven by their potential to optimize healthcare spending.
-Affordable Algorithm Ranking	Therapy	Disease	Global Patient Population	Cost Difference ($)	Evidence Probability (Score: Evidence Type)	Annual Total Cost Reduction Potential ($)	PubMed Link 
+This table highlights therapies with potential for significant healthcare cost reductions through Interventional Pharmacoeconomics (IVPE). By identifying cost-effective alternatives to high-cost treatments, the table ranks candidates suitable for IVPE funding by health insurers based on their ability to deliver savings while maintaining or improving clinical outcomes. Therapies are evaluated using evidence probability, patient population, and cost difference, with rankings driven by their potential to optimize healthcare spending.
+Affordable Algorithm Ranking	Therapy	Disease	Patient Population	Cost Difference ($)	Evidence Probability (Score: Evidence Type)	Annual Total Cost Reduction Potential ($)	PubMed Link 
 0.70	Pembrolizumab (Dose Reduction)	Lung Cancer	1,000,000	$90,000 (90% dose reduction; $100,000 baseline)	0.6: Prospective Studies	$90 billion	Pembrolizumab Optimization
 
 0.70	Rituximab	Multiple Sclerosis	2,800,000	$72,000 (Ocrelizumab: $80,000)	0.7: Phase 3 RCTs	$201.6 billion	Rituximab for MS
@@ -120,7 +120,7 @@ The PFS Affordable Table ranks therapies based on:
 Affordable PFS Table 
 This table focuses on therapies with potential for QALY (Quality-Adjusted Life Year) impact, using evidence probability and global health needs to rank their health benefits. Unlike the IVPE table, this focuses on therapies without high-cost comparators where PFS contracts incentivize the funding of clinical studies and where QALY improvements drive funding priorities.
  
-Affordable Algorithm Ranking	Therapy	Disease	Annual Cost ($)	Evidence Probability (Score: Evidence Type)	Global Patient Population	Estimated QALY Impact (Millions)	PubMed Link
+Affordable Algorithm Ranking	Therapy	Disease	Annual Cost ($)	Evidence Probability (Score: Evidence Type)	Patient Population	Estimated QALY Impact (Millions)	PubMed Link
 0.70	Metformin	Anti-aging, cancer prevention, cardiovascular	$48–$100	0.7: Observational Studies	50,000,000	17.5	MILES Study
 
 0.50	Rapamycin	Cancer prevention, longevity	$48,500	0.4: RCT Emulation	50,000,000	10.0	Rapamycin in Aging

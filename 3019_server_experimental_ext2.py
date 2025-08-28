@@ -61,7 +61,7 @@ management_conn.execute("""
         reference_drug_name TEXT NOT NULL,
         replacement_drug_id TEXT NOT NULL,
         replacement_drug_name TEXT NOT NULL,
-        global_patient_population TEXT NOT NULL DEFAULT 'N/A',
+        patient_population TEXT NOT NULL DEFAULT 'N/A',
         cost_difference TEXT NOT NULL DEFAULT 'N/A',
         evidence TEXT NOT NULL,
         annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
@@ -79,7 +79,7 @@ management_conn.execute("""
         reference_drug_name TEXT NOT NULL,
         replacement_drug_id TEXT NOT NULL,
         replacement_drug_name TEXT NOT NULL,
-        global_patient_population TEXT NOT NULL DEFAULT 'N/A',
+        patient_population TEXT NOT NULL DEFAULT 'N/A',
         estimated_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
         evidence TEXT NOT NULL,
         annual_cost TEXT NOT NULL DEFAULT 'N/A',
@@ -440,7 +440,7 @@ class IVPEEntryFullModel(BaseModel):
     reference_drug_name: str
     replacement_drug_id: str
     replacement_drug_name: str
-    global_patient_population: Optional[str] = None
+    patient_population: Optional[str] = None
     cost_difference: Optional[str] = None
     evidence: str
     annual_cost_reduction: Optional[str] = None
@@ -455,7 +455,7 @@ class PFSEntryFullModel(BaseModel):
     reference_drug_name: str
     replacement_drug_id: str
     replacement_drug_name: str
-    global_patient_population: Optional[str] = None
+    patient_population: Optional[str] = None
     estimated_qaly_impact: Optional[str] = None
     evidence: str
     annual_cost: Optional[str] = None
@@ -721,7 +721,7 @@ class IVPEEntryUpdateModel(BaseModel):
     reference_drug_name: str
     replacement_drug_id: str
     replacement_drug_name: str
-    global_patient_population: str
+    patient_population: str
     cost_difference: str
     evidence: str
     annual_cost_reduction: str
@@ -735,7 +735,7 @@ class PFSEntryUpdateModel(BaseModel):
     reference_drug_name: str
     replacement_drug_id: str
     replacement_drug_name: str
-    global_patient_population: str
+    patient_population: str
     estimated_qaly_impact: str
     evidence: str
     annual_cost: str
@@ -755,7 +755,7 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
         SET disease_name = ?,
             reference_drug_name = ?,
             replacement_drug_name = ?,
-            global_patient_population = ?,
+            patient_population = ?,
             cost_difference = ?,
             evidence = ?,
             annual_cost_reduction = ?,
@@ -766,7 +766,7 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
             entry.disease_name,
             entry.reference_drug_name,
             entry.replacement_drug_name,
-            entry.global_patient_population,
+            entry.patient_population,
             entry.cost_difference,
             entry.evidence,
             entry.annual_cost_reduction,
@@ -792,7 +792,7 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
         SET disease_name = ?,
             reference_drug_name = ?,
             replacement_drug_name = ?,
-            global_patient_population = ?,
+            patient_population = ?,
             estimated_qaly_impact = ?,
             evidence = ?,
             annual_cost = ?,
@@ -805,7 +805,7 @@ def update_entry_in_table_pfs(entry: PFSEntryUpdateModel):
             entry.disease_name,
             entry.reference_drug_name,
             entry.replacement_drug_name,
-            entry.global_patient_population,
+            entry.patient_population,
             entry.estimated_qaly_impact,
             entry.evidence,
             entry.annual_cost,
@@ -836,8 +836,8 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
     replacement_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [replacement_drug_id]).fetchone()[0]
     bio_data_conn.close()
 
-    if field_name == 'global_patient_population':
-        value, full_response = ai_lib.get_global_patient_population(disease_name, reference_drug_name, replacement_drug_name)
+    if field_name == 'patient_population':
+        value, full_response = ai_lib.get_patient_population(disease_name, reference_drug_name, replacement_drug_name)
     elif field_name == 'cost_difference':
         value, full_response = ai_lib.get_cost_difference(disease_name, reference_drug_name, replacement_drug_name)
     elif field_name == 'estimated_qaly_impact':

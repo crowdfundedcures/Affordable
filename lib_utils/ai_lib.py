@@ -50,7 +50,7 @@ def parse_response(response_text: str) -> float|None:
         print(f"Original response: {response_text}")
         return None
 
-def get_global_patient_population(disease_name: str, reference_drug_name: str, replacement_drug_name: str):
+def get_patient_population(disease_name: str, reference_drug_name: str, replacement_drug_name: str):
     prompt = f"""Search for the patient population in the United States of {disease_name} 
                  and provide the answer as the minimum, maximum, and average patient population in json format
                  as a dictionary with the following structure: """ + \

@@ -105,7 +105,7 @@ for i, fname in enumerate(tqdm([fname for fname in sorted(os.listdir(INPUT_DIR))
                 'reference_drug_name': res_json['reference_drug']['Molecule Name'],
                 'substitute_drug_id': row['ChEMBL ID'], 
                 'substitute_drug_name': row['Molecule Name'],
-                'global_patient_population': 'N/A',
+                'patient_population': 'N/A',
                 'cost_difference': 'N/A',
                 'evidence': f'Phase {row["phase"]} (phase status: {row["status"]})' if row["phase"] else 'N/A',
                 'annual_cost_reduction': 'N/A',

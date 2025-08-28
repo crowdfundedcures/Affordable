@@ -63,7 +63,7 @@
                         <th>reference_drug_name</th>
                         <th>replacement_drug_id</th>
                         <th>replacement_drug_name</th>
-                        <th>global_patient_population</th>
+                        <th>patient_population</th>
                         <th>cost_difference</th>
                         <th>evidence</th>
                         <th>annual_cost_reduction</th>
@@ -90,7 +90,7 @@
                         <th>reference_drug_name</th>
                         <th>replacement_drug_id</th>
                         <th>replacement_drug_name</th>
-                        <th>global_patient_population</th>
+                        <th>patient_population</th>
                         <th>estimated_qaly_impact</th>
                         <th>evidence</th>
                         <th>annual_cost</th>
@@ -448,7 +448,7 @@
                         <td data-column="reference_drug_name">${record.reference_drug_name}</td>
                         <td data-column="replacement_drug_id">${record.replacement_drug_id}</td>
                         <td data-column="replacement_drug_name">${record.replacement_drug_name}</td>
-                        <td data-column="global_patient_population">${record.global_patient_population}</td>
+                        <td data-column="patient_population">${record.patient_population}</td>
                         <td data-column="cost_difference">${record.cost_difference}</td>
                         <td data-column="evidence">${record.evidence}</td>
                         <td data-column="annual_cost_reduction">${record.annual_cost_reduction}</td>
@@ -513,7 +513,7 @@
                         <td data-column="reference_drug_name">${record.reference_drug_name}</td>
                         <td data-column="replacement_drug_id">${record.replacement_drug_id}</td>
                         <td data-column="replacement_drug_name">${record.replacement_drug_name}</td>
-                        <td data-column="global_patient_population">${record.global_patient_population}</td>
+                        <td data-column="patient_population">${record.patient_population}</td>
                         <td data-column="estimated_qaly_impact">${record.estimated_qaly_impact}</td>
                         <td data-column="evidence">${record.evidence}</td>
                         <td data-column="annual_cost">${record.annual_cost}</td>
@@ -549,7 +549,7 @@
         }
 
         async function editEntryInIVPETable(tr_element) {
-            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active;
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active;
             tr_element.childNodes.forEach(td_element => {
                 if (td_element.nodeType !== Node.TEXT_NODE) {
                     if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
@@ -558,7 +558,7 @@
                     else if (td_element.getAttribute("data-column") === "reference_drug_name") { reference_drug_name = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "replacement_drug_id") { replacement_drug_id = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "replacement_drug_name") { replacement_drug_name = td_element.innerText; }
-                    else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "patient_population") { patient_population = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "cost_difference") { cost_difference = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "evidence") { evidence = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "annual_cost_reduction") { annual_cost_reduction = td_element.innerText; }
@@ -616,9 +616,9 @@
                 </td>
             </tr>
             <tr>
-                <td>global_patient_population</td>
+                <td>patient_population</td>
                 <td>
-                    <input type="text" value="${global_patient_population}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_global_patient_population" placeholder="global_patient_population">
+                    <input type="text" value="${patient_population}" style="width: 100%; height: 30px;" id="edit_ivpe_popup_patient_population" placeholder="patient_population">
                 </td>
             </tr>
             <tr>
@@ -666,31 +666,31 @@
                 const disease_name = document.getElementById("edit_ivpe_popup_disease_name").value;
                 const reference_drug_name = document.getElementById("edit_ivpe_popup_reference_drug_name").value;
                 const replacement_drug_name = document.getElementById("edit_ivpe_popup_replacement_drug_name").value;
-                const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value;
+                const patient_population = document.getElementById("edit_ivpe_popup_patient_population").value;
                 const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value;
                 const evidence = document.getElementById("edit_ivpe_popup_evidence").value;
                 const annual_cost_reduction = document.getElementById("edit_ivpe_popup_annual_cost_reduction").value;
                 const approval_likelihood = document.getElementById("edit_ivpe_popup_approval_likelihood").value;
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
-                if (!isStringNumeric(global_patient_population.replaceAll(" ", "")) && global_patient_population !== "N/A") {
-                    alert('The value of "global_patient_population" must be numeric or "N/A".')
-                } else if (!isStringNumeric(cost_difference.replaceAll(" ", "")) && global_patient_population !== "N/A") {
+                if (!isStringNumeric(patient_population.replaceAll(" ", "")) && patient_population !== "N/A") {
+                    alert('The value of "patient_population" must be numeric or "N/A".')
+                } else if (!isStringNumeric(cost_difference.replaceAll(" ", "")) && patient_population !== "N/A") {
                     alert('The value of "cost_difference" must be numeric or "N/A".')
                 } else if (!isStringNumeric(approval_likelihood.replaceAll(" ", "")) && approval_likelihood !== "N/A") {
                     alert('The value of "approval_likelihood" must be numeric or "N/A".')
                 } else {
-                    await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active);
+                    await updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active);
                     document.body.removeChild(document.getElementById("edit_ivpe_popup"));
                 }
             });
             document.body.appendChild(popup);
 
-            document.getElementById("edit_ivpe_popup_global_patient_population").addEventListener('input', function() {
+            document.getElementById("edit_ivpe_popup_patient_population").addEventListener('input', function() {
                 const cost_difference = document.getElementById("edit_ivpe_popup_cost_difference").value.replaceAll(" ", "");
-                const global_patient_population = this.value.replaceAll(" ", "");
+                const patient_population = this.value.replaceAll(" ", "");
                 const annual_cost_reduction_el = document.getElementById("edit_ivpe_popup_annual_cost_reduction");
-                if (isStringNumeric(global_patient_population) && isStringNumeric(cost_difference)) {
-                    annual_cost_reduction_el.value = Number(global_patient_population) * Number(cost_difference);
+                if (isStringNumeric(patient_population) && isStringNumeric(cost_difference)) {
+                    annual_cost_reduction_el.value = Number(patient_population) * Number(cost_difference);
                 } else {
                     annual_cost_reduction_el.value = "N/A";
                 }
@@ -698,17 +698,17 @@
             });
             document.getElementById("edit_ivpe_popup_cost_difference").addEventListener('input', function() {
                 const cost_difference = this.value.replaceAll(" ", "");
-                const global_patient_population = document.getElementById("edit_ivpe_popup_global_patient_population").value.replaceAll(" ", "");
+                const patient_population = document.getElementById("edit_ivpe_popup_patient_population").value.replaceAll(" ", "");
                 const annual_cost_reduction_el = document.getElementById("edit_ivpe_popup_annual_cost_reduction");
-                if (isStringNumeric(cost_difference) && isStringNumeric(global_patient_population)) {
-                    annual_cost_reduction_el.value = Number(global_patient_population) * Number(cost_difference);
+                if (isStringNumeric(cost_difference) && isStringNumeric(patient_population)) {
+                    annual_cost_reduction_el.value = Number(patient_population) * Number(cost_difference);
                 } else {
                     annual_cost_reduction_el.value = "N/A";
                 }
                 annual_cost_reduction_el.dispatchEvent(new Event('input'));
             });
 
-            ["global_patient_population", "cost_difference", "approval_likelihood"].forEach(field_name => {
+            ["patient_population", "cost_difference", "approval_likelihood"].forEach(field_name => {
                 const input_el = document.getElementById("edit_ivpe_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
@@ -809,7 +809,7 @@
         }
 
         async function editEntryInPFSTable(tr_element) {
-            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active;
+            let disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active;
             tr_element.childNodes.forEach(td_element => {
                 if (td_element.nodeType !== Node.TEXT_NODE) {
                     if (td_element.getAttribute("data-column") === "disease_id") { disease_id = td_element.innerText; }
@@ -818,7 +818,7 @@
                     else if (td_element.getAttribute("data-column") === "reference_drug_name") { reference_drug_name = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "replacement_drug_id") { replacement_drug_id = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "replacement_drug_name") { replacement_drug_name = td_element.innerText; }
-                    else if (td_element.getAttribute("data-column") === "global_patient_population") { global_patient_population = td_element.innerText; }
+                    else if (td_element.getAttribute("data-column") === "patient_population") { patient_population = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "estimated_qaly_impact") { estimated_qaly_impact = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "evidence") { evidence = td_element.innerText; }
                     else if (td_element.getAttribute("data-column") === "annual_cost") { annual_cost = td_element.innerText; }
@@ -878,9 +878,9 @@
                 </td>
             </tr>
             <tr>
-                <td>global_patient_population</td>
+                <td>patient_population</td>
                 <td>
-                    <input type="text" value="${global_patient_population}" style="width: 100%; height: 30px;" id="edit_pfs_popup_global_patient_population" placeholder="global_patient_population">
+                    <input type="text" value="${patient_population}" style="width: 100%; height: 30px;" id="edit_pfs_popup_patient_population" placeholder="patient_population">
                 </td>
             </tr>
             <tr>
@@ -940,7 +940,7 @@
                 const disease_name = document.getElementById("edit_pfs_popup_disease_name").value;
                 const reference_drug_name = document.getElementById("edit_pfs_popup_reference_drug_name").value;
                 const replacement_drug_name = document.getElementById("edit_pfs_popup_replacement_drug_name").value;
-                const global_patient_population = document.getElementById("edit_pfs_popup_global_patient_population").value;
+                const patient_population = document.getElementById("edit_pfs_popup_patient_population").value;
                 const estimated_qaly_impact = document.getElementById("edit_pfs_popup_estimated_qaly_impact").value;
                 const evidence = document.getElementById("edit_pfs_popup_evidence").value;
                 const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value;
@@ -948,8 +948,8 @@
                 const total_qaly_impact = document.getElementById("edit_pfs_popup_total_qaly_impact").value;
                 const approval_likelihood = document.getElementById("edit_pfs_popup_approval_likelihood").value;
                 const is_active = document.getElementById("edit_pfs_popup_is_active").checked;
-                if (!isStringNumeric(global_patient_population.replaceAll(" ", "")) && global_patient_population !== "N/A") {
-                    alert('The value of "global_patient_population" must be numeric or "N/A".')
+                if (!isStringNumeric(patient_population.replaceAll(" ", "")) && patient_population !== "N/A") {
+                    alert('The value of "patient_population" must be numeric or "N/A".')
                 } else if (!isStringNumeric(estimated_qaly_impact.replaceAll(" ", "")) && estimated_qaly_impact !== "N/A") {
                     alert('The value of "estimated_qaly_impact" must be numeric or "N/A".')
                 } else if (!isStringNumeric(annual_cost.replaceAll(" ", "")) && annual_cost !== "N/A") {
@@ -957,18 +957,18 @@
                 } else if (!isStringNumeric(approval_likelihood.replaceAll(" ", "")) && approval_likelihood !== "N/A") {
                     alert('The value of "approval_likelihood" must be numeric or "N/A".')
                 } else {
-                    await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active);
+                    await updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active);
                     document.body.removeChild(document.getElementById("edit_pfs_popup"));
                 }
             });
             document.body.appendChild(popup);
 
-            document.getElementById("edit_pfs_popup_global_patient_population").addEventListener('input', function() {
+            document.getElementById("edit_pfs_popup_patient_population").addEventListener('input', function() {
                 const estimated_qaly_impact = document.getElementById("edit_pfs_popup_estimated_qaly_impact").value.replaceAll(" ", "");
-                const global_patient_population = this.value.replaceAll(" ", "");
+                const patient_population = this.value.replaceAll(" ", "");
                 const total_qaly_impact_el = document.getElementById("edit_pfs_popup_total_qaly_impact");
-                if (isStringNumeric(estimated_qaly_impact) && isStringNumeric(global_patient_population)) {
-                    total_qaly_impact_el.value = Number(global_patient_population) * Number(estimated_qaly_impact);
+                if (isStringNumeric(estimated_qaly_impact) && isStringNumeric(patient_population)) {
+                    total_qaly_impact_el.value = Number(patient_population) * Number(estimated_qaly_impact);
                 } else {
                     total_qaly_impact_el.value = "N/A";
                 }
@@ -988,7 +988,7 @@
             document.getElementById("edit_pfs_popup_estimated_qaly_impact").addEventListener('input', function() {
                 const estimated_qaly_impact = this.value.replaceAll(" ", "");
                 const annual_cost = document.getElementById("edit_pfs_popup_annual_cost").value.replaceAll(" ", "");
-                const global_patient_population = document.getElementById("edit_pfs_popup_global_patient_population").value.replaceAll(" ", "");
+                const patient_population = document.getElementById("edit_pfs_popup_patient_population").value.replaceAll(" ", "");
                 const cost_per_qaly_el = document.getElementById("edit_pfs_popup_cost_per_qaly");
                 const total_qaly_impact_el = document.getElementById("edit_pfs_popup_total_qaly_impact");
                 if (isStringNumeric(estimated_qaly_impact) && isStringNumeric(annual_cost) && Number(estimated_qaly_impact) > 0) {
@@ -997,15 +997,15 @@
                     cost_per_qaly_el.value = "N/A";
                 }
                 cost_per_qaly_el.dispatchEvent(new Event('input'));
-                if (isStringNumeric(estimated_qaly_impact) && isStringNumeric(global_patient_population)) {
-                    total_qaly_impact_el.value = Number(global_patient_population) * Number(estimated_qaly_impact);
+                if (isStringNumeric(estimated_qaly_impact) && isStringNumeric(patient_population)) {
+                    total_qaly_impact_el.value = Number(patient_population) * Number(estimated_qaly_impact);
                 } else {
                     total_qaly_impact_el.value = "N/A";
                 }
                 total_qaly_impact_el.dispatchEvent(new Event('input'));
             });
 
-            ["global_patient_population", "estimated_qaly_impact", "annual_cost", "approval_likelihood"].forEach(field_name => {
+            ["patient_population", "estimated_qaly_impact", "annual_cost", "approval_likelihood"].forEach(field_name => {
                 const input_el = document.getElementById("edit_pfs_popup_" + field_name);
                 const ask_AI_button = document.createElement("button");
                 ask_AI_button.innerText = "Ask AI";
@@ -1202,7 +1202,7 @@
             }
         }
 
-        async function updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active) {
+        async function updateEntryInIVPETable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, patient_population, cost_difference, evidence, annual_cost_reduction, approval_likelihood, is_active) {
             showLoader();
             try {
                 const response = await fetch(`/table_ivpe`, {
@@ -1219,7 +1219,7 @@
                         reference_drug_name: reference_drug_name,
                         replacement_drug_id: replacement_drug_id,
                         replacement_drug_name: replacement_drug_name,
-                        global_patient_population: global_patient_population,
+                        patient_population: patient_population,
                         cost_difference: cost_difference,
                         evidence: evidence,
                         annual_cost_reduction: annual_cost_reduction,
@@ -1245,7 +1245,7 @@
             }
         }
 
-        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, global_patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active) {
+        async function updateEntryInPFSTable(disease_id, disease_name, reference_drug_id, reference_drug_name, replacement_drug_id, replacement_drug_name, patient_population, estimated_qaly_impact, evidence, annual_cost, cost_per_qaly, total_qaly_impact, approval_likelihood, is_active) {
             showLoader();
             try {
                 const response = await fetch(`/table_pfs`, {
@@ -1262,7 +1262,7 @@
                         reference_drug_name: reference_drug_name,
                         replacement_drug_id: replacement_drug_id,
                         replacement_drug_name: replacement_drug_name,
-                        global_patient_population: global_patient_population,
+                        patient_population: patient_population,
                         estimated_qaly_impact: estimated_qaly_impact,
                         evidence: evidence,
                         annual_cost: annual_cost,

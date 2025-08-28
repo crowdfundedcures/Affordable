@@ -13,7 +13,7 @@ reference_drug_id:
 reference_drug_name:
 substitute_drug_id: 
 substitute_drug_name:
-global_patient_population:
+patient_population:
 cost_difference:
 evidence:
 annual_cost_reduction:
