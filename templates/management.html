@@ -674,7 +674,7 @@
                 const is_active = document.getElementById("edit_ivpe_popup_is_active").checked;
                 if (!isStringNumeric(patient_population.replaceAll(" ", "")) && patient_population !== "N/A") {
                     alert('The value of "patient_population" must be numeric or "N/A".')
-                } else if (!isStringNumeric(cost_difference.replaceAll(" ", "")) && patient_population !== "N/A") {
+                } else if (!isStringNumeric(cost_difference.replaceAll(" ", "")) && cost_difference !== "N/A") {
                     alert('The value of "cost_difference" must be numeric or "N/A".')
                 } else if (!isStringNumeric(approval_likelihood.replaceAll(" ", "")) && approval_likelihood !== "N/A") {
                     alert('The value of "approval_likelihood" must be numeric or "N/A".')
