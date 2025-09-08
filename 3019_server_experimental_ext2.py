@@ -3,6 +3,7 @@ import json
 import hashlib
 import secrets
 import datetime as dt
+import concurrent.futures
 from threading import Thread
 from typing import List, Dict, Optional
 
@@ -17,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from lib_utils import ai_lib
 from lib_utils.project_ranking import get_ranks
+from management_db_migrations import apply_migrations
 
 
 
@@ -33,76 +35,10 @@ STATUS_NUM = {
     'N/A': 0,
 }
 
-management_db_path = "management.duck.db"
+management_db_path = "management.duck2.db"
 bio_data_db_path = "bio_data.duck.db"
 
-
-# Database Initialization
-management_conn = duckdb.connect(management_db_path)
-
-management_conn.execute("""
-    CREATE TABLE IF NOT EXISTS evidence (
-        disease_id TEXT NOT NULL,
-        reference_drug_id TEXT NOT NULL,
-        replacement_drug_id TEXT NOT NULL,
-        target_id TEXT NOT NULL,
-        action_type TEXT NOT NULL,
-        mechanism_of_action TEXT NOT NULL,
-        refs TEXT[],
-        PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id, target_id)
-    )
-""")
-management_conn.execute("""
-    CREATE TABLE IF NOT EXISTS ivpe_table (
-        similarity FLOAT NOT NULL,
-        disease_id TEXT NOT NULL,
-        disease_name TEXT NOT NULL,
-        reference_drug_id TEXT NOT NULL,
-        reference_drug_name TEXT NOT NULL,
-        replacement_drug_id TEXT NOT NULL,
-        replacement_drug_name TEXT NOT NULL,
-        patient_population TEXT NOT NULL DEFAULT 'N/A',
-        cost_difference TEXT NOT NULL DEFAULT 'N/A',
-        evidence TEXT NOT NULL,
-        annual_cost_reduction TEXT NOT NULL DEFAULT 'N/A',
-        approval_likelihood TEXT NOT NULL DEFAULT 'N/A',
-        is_active BOOLEAN NOT NULL DEFAULT 0,
-        PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
-    )
-""")
-management_conn.execute("""
-    CREATE TABLE IF NOT EXISTS pfs_table (
-        similarity FLOAT NOT NULL,
-        disease_id TEXT NOT NULL,
-        disease_name TEXT NOT NULL,
-        reference_drug_id TEXT NOT NULL,
-        reference_drug_name TEXT NOT NULL,
-        replacement_drug_id TEXT NOT NULL,
-        replacement_drug_name TEXT NOT NULL,
-        patient_population TEXT NOT NULL DEFAULT 'N/A',
-        estimated_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
-        evidence TEXT NOT NULL,
-        annual_cost TEXT NOT NULL DEFAULT 'N/A',
-        cost_per_qaly TEXT NOT NULL DEFAULT 'N/A',
-        total_qaly_impact TEXT NOT NULL DEFAULT 'N/A',
-        rank TEXT NOT NULL DEFAULT 'N/A',
-        approval_likelihood TEXT NOT NULL DEFAULT 'N/A',
-        is_active BOOLEAN NOT NULL DEFAULT 0,
-        PRIMARY KEY(disease_id, reference_drug_id, replacement_drug_id)
-    )
-""")
-management_conn.execute("""
-    CREATE TABLE IF NOT EXISTS ai_logs (
-        disease_id TEXT NOT NULL,
-        reference_drug_id TEXT NOT NULL,
-        replacement_drug_id TEXT NOT NULL,
-        field_name TEXT NOT NULL,
-        datetime TEXT NOT NULL,
-        log TEXT
-    )
-""")
-management_conn.close()
-
+apply_migrations(management_db_path)
 
 bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
 ALL_DISEASES = bio_data_conn.execute('SELECT id, name FROM tbl_diseases').fetchall()
@@ -186,7 +122,17 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 
-
+def format_number(n: int|float) -> str:
+    v = str(n).split('.')
+    x1 = v[0]
+    x2 = '.' + v[1] if len(v) > 1  and v[1] != '0' else ''
+    new_x1 = ''
+    for i in range(len(x1)):
+        ch = x1[-1-i]
+        if i % 3 == 0 and i != 0:
+            new_x1 = ' ' + new_x1
+        new_x1 = ch + new_x1
+    return new_x1 + x2
 
 
 @app.get("/diseases", response_model=List[List], dependencies=[Depends(get_current_user)])
@@ -199,10 +145,6 @@ def get_substances():
 
 
 # Serve HTML Pages
-@app.get("/admin", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
-
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -444,6 +386,7 @@ class IVPEEntryFullModel(BaseModel):
     cost_difference: Optional[str] = None
     evidence: str
     annual_cost_reduction: Optional[str] = None
+    rank: Optional[str] = None
     approval_likelihood: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -491,8 +434,106 @@ def get_table_pfs():
     rows = sorted(rows, key=lambda row: -row['similarity'])
     return rows
 
+
+def update_table_ivpe_ranks():
+    try:
+        management_conn = duckdb.connect(management_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    rows = management_conn.execute('''
+        SELECT disease_id,
+            reference_drug_id,
+            replacement_drug_id,
+            patient_population,
+            cost_difference,
+            approval_likelihood
+        FROM ivpe_table''').fetchall()
+    management_conn.close()
+
+    if not rows:
+        return
+
+    na_ranks = []
+    ranks = []
+    for row in rows:
+        try:
+            patient_population = float(row[3].replace(' ', ''))
+            cost_difference = float(row[4].replace(' ', ''))
+            approval_likelihood = float(row[5].replace(' ', ''))
+        except:
+            # not numeric
+            na_ranks.append((row[0], row[1], row[2]))
+            continue
+        rank = patient_population * cost_difference * approval_likelihood
+        ranks.append([rank, row[0], row[1], row[2]]) # [rank, disease_id, reference_drug_id, replacement_drug_id]
+
+    ranks.sort(key=lambda x: -x[0])
+
+    try:
+        management_conn = duckdb.connect(management_db_path)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    management_conn.execute("BEGIN TRANSACTION")
+
+    try:
+        for rank, (_, disease_id, reference_drug_id, replacement_drug_id) in enumerate(ranks, 1):
+            management_conn.execute("""
+                UPDATE ivpe_table 
+                SET rank = ?
+                WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+                [
+                    rank,
+                    disease_id, reference_drug_id, replacement_drug_id
+                ])
+        for disease_id, reference_drug_id, replacement_drug_id in na_ranks:
+            management_conn.execute("""
+                UPDATE ivpe_table 
+                SET rank = ?
+                WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+                [
+                    'N/A',
+                    disease_id, reference_drug_id, replacement_drug_id
+                ])
+        management_conn.execute("COMMIT")
+    except:
+        raise HTTPException(status_code=500, detail="Failed to save ranks")
+    finally:
+        management_conn.close()
+
+
 @app.put("/table_ivpe", response_model=Dict, dependencies=[Depends(get_current_user)])
 def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
+    try:
+        bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    disease_name = bio_data_conn.execute('SELECT name FROM tbl_diseases WHERE id = ?', [entry.disease_id]).fetchone()[0]
+    reference_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [entry.reference_drug_id]).fetchone()[0]
+    replacement_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [entry.replacement_drug_id]).fetchone()[0]
+    bio_data_conn.close()
+
+    evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
+    refs = set()
+    for e in evidence_list:
+        refs.update(e['refs'])
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future1 = executor.submit(ai_lib.get_patient_population, disease_name, reference_drug_name, replacement_drug_name)
+        future2 = executor.submit(ai_lib.get_cost_difference, disease_name, reference_drug_name, replacement_drug_name)
+        if refs:
+            future3 = executor.submit(ai_lib.get_approval_likelihood, disease_name, reference_drug_name, replacement_drug_name, refs)
+
+        patient_population, full_response1 = future1.result()
+        cost_difference, full_response2 = future2.result()
+        if refs:
+            approval_likelihood, full_response3 = future3.result()
+        else:
+            approval_likelihood = None
+
+    patient_population = format_number(patient_population) if patient_population is not None else 'N/A'
+    cost_difference = format_number(cost_difference) if cost_difference is not None else 'N/A'
+    approval_likelihood = format_number(approval_likelihood) if approval_likelihood is not None else 'N/A'
+
     try:
         management_conn = duckdb.connect(management_db_path)
     except duckdb.ConnectionException:
@@ -508,9 +549,12 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
                 reference_drug_name,
                 replacement_drug_id,
                 replacement_drug_name,
-                evidence
+                evidence,
+                patient_population,
+                cost_difference,
+                approval_likelihood
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
             [entry.similarity,
             entry.disease_id,
             entry.disease_name,
@@ -518,40 +562,62 @@ def add_entry_to_table_ivpe(entry: IVPEEntryFullModel):
             entry.reference_drug_name,
             entry.replacement_drug_id,
             entry.replacement_drug_name,
-            entry.evidence])
+            entry.evidence,
+            patient_population,
+            cost_difference,
+            approval_likelihood])
     except duckdb.ConstraintException:
         management_conn.close()
         raise HTTPException(status_code=400, detail="Already exists")
 
-    evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
     evidence_list = [[entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in evidence_list]
 
-    # debug
-    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - before executemany")
+    try:
+        management_conn.executemany("""
+            INSERT OR IGNORE INTO evidence (
+                disease_id,
+                reference_drug_id,
+                replacement_drug_id,
+                target_id,
+                action_type,
+                mechanism_of_action,
+                refs
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+            evidence_list)
+    except:
+        management_conn.close()
+        raise HTTPException(status_code=500, detail="Failed to save evidence_list")
 
-    management_conn.executemany("""
-        INSERT OR IGNORE INTO evidence (
-            disease_id,
-            reference_drug_id,
-            replacement_drug_id,
-            target_id,
-            action_type,
-            mechanism_of_action,
-            refs
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)""", 
-        evidence_list)
+    dt_now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    ai_logs = [
+        [entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'patient_population', dt_now, full_response1],
+        [entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'cost_difference', dt_now, full_response2],
+    ]
+    if refs:
+        ai_logs.append([entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'approval_likelihood', dt_now, full_response3])
+
+    try:
+        management_conn.executemany("""
+            INSERT INTO ai_logs (
+                disease_id,
+                reference_drug_id,
+                replacement_drug_id,
+                field_name,
+                datetime,
+                log
+            )
+            VALUES (?, ?, ?, ?, ?, ?)""", 
+            ai_logs)
+    except:
+        # management_conn.close()
+        # raise HTTPException(status_code=500, detail="Failed to save ai_logs")
+        print('Failed to save ai_logs')
 
     management_conn.execute("COMMIT")
-
-    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after executemany")
-
     management_conn.close()
 
-    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after close")
+    update_table_ivpe_ranks()
 
     return {"success": True, "message": "entry was added successfully"}
 
@@ -564,6 +630,10 @@ def update_table_pfs_ranks():
     rows = management_conn.execute('SELECT disease_id, reference_drug_id, replacement_drug_id, estimated_qaly_impact, annual_cost FROM pfs_table').fetchall()
     management_conn.close()
 
+    if not rows:
+        return
+
+    na_ranks = []
     projects = []
     for row in rows:
         id = tuple(row[:3]) # (disease_id, reference_drug_id, replacement_drug_id)
@@ -571,8 +641,11 @@ def update_table_pfs_ranks():
             qaly = float(row[3].replace(' ', ''))
             cost = float(row[4].replace(' ', ''))
         except:
-            continue # not numeric
+            # not numeric
+            na_ranks.append(id)
+            continue
         if cost == 0:
+            na_ranks.append(id)
             continue
         projects.append({'id': id, 'qaly': qaly, 'cost': cost})
 
@@ -584,22 +657,68 @@ def update_table_pfs_ranks():
         raise HTTPException(status_code=500, detail="Server busy")
     management_conn.execute("BEGIN TRANSACTION")
 
-    for rank, (disease_id, reference_drug_id, replacement_drug_id) in ranks.items():
-        management_conn.execute("""
-            UPDATE pfs_table 
-            SET rank = ?
-            WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
-            [
-                rank,
-                disease_id, reference_drug_id, replacement_drug_id
-            ])
-    management_conn.execute("COMMIT")
-    management_conn.close()
-
+    try:
+        for rank, (disease_id, reference_drug_id, replacement_drug_id) in ranks.items():
+            management_conn.execute("""
+                UPDATE pfs_table 
+                SET rank = ?
+                WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+                [
+                    rank,
+                    disease_id, reference_drug_id, replacement_drug_id
+                ])
+        for disease_id, reference_drug_id, replacement_drug_id in na_ranks:
+            management_conn.execute("""
+                UPDATE pfs_table 
+                SET rank = ?
+                WHERE disease_id = ? AND reference_drug_id = ? AND replacement_drug_id = ?""", 
+                [
+                    'N/A',
+                    disease_id, reference_drug_id, replacement_drug_id
+                ])
+        management_conn.execute("COMMIT")
+    except:
+        raise HTTPException(status_code=500, detail="Failed to save ranks")
+    finally:
+        management_conn.close()
 
 
 @app.put("/table_pfs", response_model=Dict, dependencies=[Depends(get_current_user)])
 def add_entry_to_table_pfs(entry: PFSEntryFullModel):
+    try:
+        bio_data_conn = duckdb.connect(bio_data_db_path, read_only=True)
+    except duckdb.ConnectionException:
+        raise HTTPException(status_code=500, detail="Server busy")
+    disease_name = bio_data_conn.execute('SELECT name FROM tbl_diseases WHERE id = ?', [entry.disease_id]).fetchone()[0]
+    reference_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [entry.reference_drug_id]).fetchone()[0]
+    replacement_drug_name = bio_data_conn.execute('SELECT name FROM tbl_substances WHERE ChEMBL_id = ?', [entry.replacement_drug_id]).fetchone()[0]
+    bio_data_conn.close()
+
+    evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
+    refs = set()
+    for e in evidence_list:
+        refs.update(e['refs'])
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future1 = executor.submit(ai_lib.get_patient_population, disease_name, reference_drug_name, replacement_drug_name)
+        future2 = executor.submit(ai_lib.get_estimated_qaly_impact, disease_name, reference_drug_name, replacement_drug_name)
+        future3 = executor.submit(ai_lib.get_annual_cost, disease_name, reference_drug_name, replacement_drug_name)
+        if refs:
+            future4 = executor.submit(ai_lib.get_approval_likelihood, disease_name, reference_drug_name, replacement_drug_name, refs)
+
+        patient_population, full_response1 = future1.result()
+        estimated_qaly_impact, full_response2 = future2.result()
+        annual_cost, full_response3 = future3.result()
+        if refs:
+            approval_likelihood, full_response4 = future4.result()
+        else:
+            approval_likelihood = None
+
+    patient_population = format_number(patient_population) if patient_population is not None else 'N/A'
+    estimated_qaly_impact = format_number(estimated_qaly_impact) if estimated_qaly_impact is not None else 'N/A'
+    annual_cost = format_number(annual_cost) if annual_cost is not None else 'N/A'
+    approval_likelihood = format_number(approval_likelihood) if approval_likelihood is not None else 'N/A'
+
     try:
         management_conn = duckdb.connect(management_db_path)
     except duckdb.ConnectionException:
@@ -615,9 +734,13 @@ def add_entry_to_table_pfs(entry: PFSEntryFullModel):
                 reference_drug_name,
                 replacement_drug_id,
                 replacement_drug_name,
-                evidence
+                evidence,
+                patient_population,
+                estimated_qaly_impact,
+                annual_cost,
+                approval_likelihood
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
             [entry.similarity,
             entry.disease_id,
             entry.disease_name,
@@ -625,7 +748,11 @@ def add_entry_to_table_pfs(entry: PFSEntryFullModel):
             entry.reference_drug_name,
             entry.replacement_drug_id,
             entry.replacement_drug_name,
-            entry.evidence])
+            entry.evidence,
+            patient_population,
+            estimated_qaly_impact,
+            annual_cost,
+            approval_likelihood])
     except duckdb.ConstraintException:
         management_conn.close()
         raise HTTPException(status_code=400, detail="Already exists")
@@ -633,32 +760,51 @@ def add_entry_to_table_pfs(entry: PFSEntryFullModel):
     evidence_list = extract_evidence(entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id)
     evidence_list = [[entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in evidence_list]
 
-    # debug
-    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - before executemany")
+    try:
+        management_conn.executemany("""
+            INSERT OR IGNORE INTO evidence (
+                disease_id,
+                reference_drug_id,
+                replacement_drug_id,
+                target_id,
+                action_type,
+                mechanism_of_action,
+                refs
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+            evidence_list)
+    except:
+        management_conn.close()
+        raise HTTPException(status_code=500, detail="Failed to save evidence_list")
 
-    management_conn.executemany("""
-        INSERT OR IGNORE INTO evidence (
-            disease_id,
-            reference_drug_id,
-            replacement_drug_id,
-            target_id,
-            action_type,
-            mechanism_of_action,
-            refs
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)""", 
-        evidence_list)
+    dt_now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    ai_logs = [
+        [entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'patient_population', dt_now, full_response1],
+        [entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'estimated_qaly_impact', dt_now, full_response2],
+        [entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'annual_cost', dt_now, full_response3],
+    ]
+    if refs:
+        ai_logs.append([entry.disease_id, entry.reference_drug_id, entry.replacement_drug_id, 'approval_likelihood', dt_now, full_response4])
+
+    try:
+        management_conn.executemany("""
+            INSERT INTO ai_logs (
+                disease_id,
+                reference_drug_id,
+                replacement_drug_id,
+                field_name,
+                datetime,
+                log
+            )
+            VALUES (?, ?, ?, ?, ?, ?)""", 
+            ai_logs)
+    except:
+        # management_conn.close()
+        # raise HTTPException(status_code=500, detail="Failed to save ai_logs")
+        print('Failed to save ai_logs')
 
     management_conn.execute("COMMIT")
-
-    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after executemany")
-
     management_conn.close()
-
-    timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {entry.disease_id} - {entry.reference_drug_id} - {entry.replacement_drug_id} - {entry.evidence} - after close")
 
     update_table_pfs_ranks()
 
@@ -685,6 +831,8 @@ def delete_entry_from_table_ivpe(disease_id: str, reference_drug_id: str, replac
             AND replacement_drug_id = ?""", 
             [disease_id, reference_drug_id, replacement_drug_id])
     management_conn.close()
+
+    update_table_ivpe_ranks()
 
     return {"success": True, "message": "entry was deleted successfully"}
 
@@ -778,6 +926,8 @@ def update_entry_in_table_ivpe(entry: IVPEEntryUpdateModel):
             entry.replacement_drug_id
         ])
     management_conn.close()
+
+    update_table_ivpe_ranks()
 
     return {"success": True, "message": "entry was added successfully"}
 
@@ -883,7 +1033,7 @@ def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, fi
 
 
 @app.get("/ai_logs/{disease_id}/{reference_drug_id}/{replacement_drug_id}/{field_name}", response_model=Dict, dependencies=[Depends(get_current_user)])
-def ask_ai(disease_id: str, reference_drug_id: str, replacement_drug_id: str, field_name: str):
+def get_ai_logs(disease_id: str, reference_drug_id: str, replacement_drug_id: str, field_name: str):
     try:
         management_conn = duckdb.connect(management_db_path, read_only=True)
     except duckdb.ConnectionException:

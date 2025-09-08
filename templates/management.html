@@ -50,6 +50,8 @@
             <input style="transform: scale(1.5); margin: 5px;" type="radio" name="table_name" id="ivpe-table-radio" checked><label for="ivpe-table-radio">IVPE</label>
             <input style="transform: scale(1.5); margin: 5px;" type="radio" name="table_name" id="pfs-table-radio"><label for="pfs-table-radio">PFS</label>
         </div>
+        <br>
+        <input type="checkbox" style="transform: scale(1.5);" id="sort_pfs_and_ivpe_tables" checked><label for="sort_pfs_and_ivpe_tables">Order by rank</label>
 
         <div id="ivpe-div">
             <h3>IVPE Table</h3>
@@ -67,6 +69,7 @@
                         <th>cost_difference</th>
                         <th>evidence</th>
                         <th>annual_cost_reduction</th>
+                        <th>rank</th>
                         <th>approval_likelihood</th>
                         <th>links</th>
                         <th>is_active</th>
@@ -130,6 +133,11 @@
         }
         document.getElementById("ivpe-table-radio").addEventListener("click", switchTable);
         document.getElementById("pfs-table-radio").addEventListener("click", switchTable);
+
+        document.getElementById("sort_pfs_and_ivpe_tables").addEventListener("click", function(event) {
+            getIVPETable();
+            getPFSTable();
+        });
 
         async function fetchAllDiseases() {
             try {
@@ -434,12 +442,16 @@
                 }
 
                 const data = await response.json();
+                if (document.getElementById("sort_pfs_and_ivpe_tables").checked) {
+                    data.sort((a, b) => a.rank.localeCompare(b.rank))
+                }
 
                 const tableBody = document.getElementById("ivpe-table-body");
                 tableBody.innerHTML = ""; 
 
                 data.forEach(record => {
                     const row = document.createElement("tr");
+                    row.setAttribute("id", `ivpe_row_${record.disease_id}_${record.reference_drug_id}_${record.replacement_drug_id}`);
                     row.innerHTML = `
                         <td data-column="similarity">${record.similarity}</td>
                         <td data-column="disease_id">${record.disease_id}</td>
@@ -452,6 +464,7 @@
                         <td data-column="cost_difference">${record.cost_difference}</td>
                         <td data-column="evidence">${record.evidence}</td>
                         <td data-column="annual_cost_reduction">${record.annual_cost_reduction}</td>
+                        <td data-column="rank">${record.rank}</td>
                         <td data-column="approval_likelihood">${record.approval_likelihood}</td>
                         <td>
                             <button onclick="showEvidence('${record.disease_id}', '${record.reference_drug_id}', '${record.replacement_drug_id}')">
@@ -499,12 +512,16 @@
                 }
 
                 const data = await response.json();
+                if (document.getElementById("sort_pfs_and_ivpe_tables").checked) {
+                    data.sort((a, b) => a.rank.localeCompare(b.rank))
+                }
 
                 const tableBody = document.getElementById("pfs-table-body");
                 tableBody.innerHTML = ""; 
 
                 data.forEach(record => {
                     const row = document.createElement("tr");
+                    row.setAttribute("id", `pfs_row_${record.disease_id}_${record.reference_drug_id}_${record.replacement_drug_id}`);
                     row.innerHTML = `
                         <td data-column="similarity">${record.similarity}</td>
                         <td data-column="disease_id">${record.disease_id}</td>
@@ -1159,6 +1176,7 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getIVPETable();
+                await editEntryInIVPETable(document.getElementById(`ivpe_row_${disease_id}_${reference_drug_id}_${replacement_drug_id}`));
                 hideLoader();
             }
         }
@@ -1198,6 +1216,7 @@
                 console.error("Error fetching data:", error);
             } finally {
                 await getPFSTable();
+                await editEntryInPFSTable(document.getElementById(`pfs_row_${disease_id}_${reference_drug_id}_${replacement_drug_id}`));
                 hideLoader();
             }
         }
