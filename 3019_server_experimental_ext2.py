@@ -35,7 +35,7 @@ STATUS_NUM = {
     'N/A': 0,
 }
 
-management_db_path = "management.duck2.db"
+management_db_path = "management.duck.db"
 bio_data_db_path = "bio_data.duck.db"
 
 apply_migrations(management_db_path)
