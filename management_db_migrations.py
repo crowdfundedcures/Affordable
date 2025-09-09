@@ -98,4 +98,4 @@ def apply_migrations(management_db_path):
     for migration_name, sql_query_list in migrations:
         if migration_name in applied_migrations:
             continue
-        _apply_migration(management_db_path, migration_name, sql_query_list, applied_migrations)
+        _apply_migration(management_db_path, migration_name, sql_query_list)
