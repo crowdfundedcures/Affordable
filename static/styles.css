@@ -83,7 +83,7 @@ button:hover {
 .b-popup-content {
     margin: 40px auto 0px auto;
     width: 90%;
-    max-height: 800px;
+    max-height: calc(100svh - 80px);
     padding: 10px;
     background-color: #ffffff;
     border-radius: 5px;
@@ -93,7 +93,7 @@ button:hover {
     padding: 10px;
 }
 .b-popup-content-table-div {
-    max-height: 700px;
+    max-height: calc(100svh - 180px);
     overflow-y: auto;
 }
 .b-popup-content-table-div td, .b-popup-content-table-div th {
