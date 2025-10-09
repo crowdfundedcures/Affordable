@@ -355,7 +355,27 @@ def get_evidence(disease_id: str, reference_drug_id: str, replacement_drug_id: s
     if rows:
         return sorted(rows, key=lambda x: (x['action_type'] == 'UNIDENTIFIED', x['target_id']))
     else:
-        return extract_evidence(disease_id, reference_drug_id, replacement_drug_id)
+        rows = extract_evidence(disease_id, reference_drug_id, replacement_drug_id)
+        evidence_list = [[disease_id, reference_drug_id, replacement_drug_id, row['target_id'], row['action_type'], row['mechanism_of_action'], row['refs']] for row in rows]
+        try:
+            management_conn = duckdb.connect(management_db_path)
+            management_conn.executemany("""
+                INSERT OR IGNORE INTO evidence (
+                    disease_id,
+                    reference_drug_id,
+                    replacement_drug_id,
+                    target_id,
+                    action_type,
+                    mechanism_of_action,
+                    refs
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+                evidence_list)
+        except:
+            pass
+        finally:
+            management_conn.close()
+            return rows
 
 
 class CalculationStatus(BaseModel):
@@ -389,6 +409,7 @@ class IVPEEntryFullModel(BaseModel):
     rank: Optional[str] = None
     approval_likelihood: Optional[str] = None
     is_active: Optional[bool] = None
+    links: Optional[List[str]] = []
 
 class PFSEntryFullModel(BaseModel):
     similarity: float|int
@@ -407,6 +428,7 @@ class PFSEntryFullModel(BaseModel):
     rank: Optional[str] = None
     approval_likelihood: Optional[str] = None
     is_active: Optional[bool] = None
+    links: Optional[List[str]] = []
 
 @app.get("/table_ivpe", response_model=List[IVPEEntryFullModel])
 def get_table_ivpe():
@@ -414,7 +436,14 @@ def get_table_ivpe():
         management_conn = duckdb.connect(management_db_path, read_only=True)
     except duckdb.ConnectionException:
         raise HTTPException(status_code=500, detail="Server busy")
-    rows = management_conn.execute('SELECT * FROM ivpe_table').fetchall()
+    rows = management_conn.execute('''
+    SELECT i.*, list_distinct(flatten(list(e.refs))) as links
+    FROM ivpe_table AS i
+    JOIN evidence AS e ON i.disease_id = e.disease_id
+        AND i.reference_drug_id = e.reference_drug_id
+        AND i.replacement_drug_id = e.replacement_drug_id
+    GROUP BY i.*;
+    ''').fetchall()
     columns = [desc[0] for desc in management_conn.description]
     management_conn.close()
     rows = [dict(zip(columns, row)) for row in rows]
@@ -427,7 +456,14 @@ def get_table_pfs():
         management_conn = duckdb.connect(management_db_path, read_only=True)
     except duckdb.ConnectionException:
         raise HTTPException(status_code=500, detail="Server busy")
-    rows = management_conn.execute('SELECT * FROM pfs_table').fetchall()
+    rows = management_conn.execute('''
+    SELECT i.*, list_distinct(flatten(list(e.refs))) as links
+    FROM pfs_table AS i
+    JOIN evidence AS e ON i.disease_id = e.disease_id
+        AND i.reference_drug_id = e.reference_drug_id
+        AND i.replacement_drug_id = e.replacement_drug_id
+    GROUP BY i.*;
+    ''').fetchall()
     columns = [desc[0] for desc in management_conn.description]
     management_conn.close()
     rows = [dict(zip(columns, row)) for row in rows]
